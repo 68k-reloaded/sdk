@@ -41,44 +41,48 @@ enum OperandType {
 String operandTypeToString(OperandType type) {
   assert(type != null);
   return {
-    dx: 'data register mode',
-    ax: 'address register mode',
-    axInd: 'address register indirect mode',
-    axIndWithPostInc: 'address register indirect with postincrement mode',
-    axIndWithPreDec: 'address register indirect with predecrement mode',
-    axIndWithDisplacement: 'address register indirect with displacement mode',
-    axIndWithIndex: 'address register indirect with index mode',
-    absoluteWord: 'absolute word addressing mode',
-    absoluteLongWord: 'absolute long word addressing mode',
-    pcIndWithDisplacement: 'program counter indirect with displacement mode',
-    pcIndWithIndex: 'program counter indirect with index mode',
-    immediate: 'immediate data mode',
-    ccr: 'condition code register mode',
-    sr: 'status register mode',
-    address: 'address mode',
-    usp: 'user stack pointer mode',
+    OperandType.dx: 'data register mode',
+    OperandType.ax: 'address register mode',
+    OperandType.axInd: 'address register indirect mode',
+    OperandType.axIndWithPostInc:
+        'address register indirect with postincrement mode',
+    OperandType.axIndWithPreDec:
+        'address register indirect with predecrement mode',
+    OperandType.axIndWithDisplacement:
+        'address register indirect with displacement mode',
+    OperandType.axIndWithIndex: 'address register indirect with index mode',
+    OperandType.absoluteWord: 'absolute word addressing mode',
+    OperandType.absoluteLongWord: 'absolute long word addressing mode',
+    OperandType.pcIndWithDisplacement:
+        'program counter indirect with displacement mode',
+    OperandType.pcIndWithIndex: 'program counter indirect with index mode',
+    OperandType.immediate: 'immediate data mode',
+    OperandType.ccr: 'condition code register mode',
+    OperandType.sr: 'status register mode',
+    OperandType.address: 'address mode',
+    OperandType.usp: 'user stack pointer mode',
   }[type];
 }
 
 String operandTypeToStringShort(OperandType type) {
   assert(type != null);
   return {
-    dx: 'Dn',
-    ax: 'An',
-    axInd: '(An)',
-    axIndWithPostInc: '(An)+',
-    axIndWithPreDec: '-(An)',
-    axIndWithDisplacement: '(d, An)',
-    axIndWithIndex: '(d, An, Xn.s)',
-    absoluteWord: '(xxx).W',
-    absoluteLongWord: '(xxx).L',
-    pcIndWithDisplacement: '(d, PC)',
-    pcIndWithIndex: '(d, PC, Xn.s)',
-    immediate: '#xxx',
-    ccr: 'CCR',
-    sr: 'SR',
-    address: 'address',
-    usp: 'USP',
+    OperandType.dx: 'Dn',
+    OperandType.ax: 'An',
+    OperandType.axInd: '(An)',
+    OperandType.axIndWithPostInc: '(An)+',
+    OperandType.axIndWithPreDec: '-(An)',
+    OperandType.axIndWithDisplacement: '(d, An)',
+    OperandType.axIndWithIndex: '(d, An, Xn.s)',
+    OperandType.absoluteWord: '(xxx).W',
+    OperandType.absoluteLongWord: '(xxx).L',
+    OperandType.pcIndWithDisplacement: '(d, PC)',
+    OperandType.pcIndWithIndex: '(d, PC, Xn.s)',
+    OperandType.immediate: '#xxx',
+    OperandType.ccr: 'CCR',
+    OperandType.sr: 'SR',
+    OperandType.address: 'address',
+    OperandType.usp: 'USP',
   }[type];
 }
 
