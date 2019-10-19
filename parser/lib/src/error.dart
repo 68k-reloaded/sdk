@@ -1,3 +1,4 @@
+import 'package:kt_dart/collection.dart';
 import 'package:meta/meta.dart';
 
 class Error {
@@ -10,9 +11,11 @@ class Error {
 }
 
 class ErrorCollector {
-  final _errors = <Error>[];
+  final KtMutableList<Error> _errors = KtMutableList.empty();
 
-  bool get hasError => _errors.isNotEmpty;
+  KtList<Error> get errors => _errors;
+  bool get hasError => _errors.isNotEmpty();
+  bool get hasNoError => _errors.isEmpty();
 
   void add(Error error) {
     assert(error != null);
