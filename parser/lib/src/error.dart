@@ -22,3 +22,13 @@ class ErrorCollector {
     _errors.add(error);
   }
 }
+
+String iterableToString(Iterable<Object> items) {
+  if (items.isEmpty) {
+    return '';
+  } else if (items.length == 1) {
+    return items.single.toString();
+  } else {
+    return '${items.take(items.length - 1).join(', ')} and ${items.last}';
+  }
+}

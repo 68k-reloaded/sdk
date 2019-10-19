@@ -1,4 +1,15 @@
+part of 'statements.dart';
+
 enum Size { byte, word, longWord }
+
+String sizeToString(Size size) {
+  assert(size != null);
+  return {
+    Size.byte: 'byte',
+    Size.word: 'word',
+    Size.longWord: 'long word',
+  }[size];
+}
 
 const _sizesB = {Size.byte};
 const _sizesBW = {Size.byte, Size.word};
@@ -26,6 +37,55 @@ enum OperandType {
   address,
   usp,
 }
+
+String operandTypeToString(OperandType type) {
+  assert(type != null);
+  return {
+    OperandType.dx: 'data register mode',
+    OperandType.ax: 'address register mode',
+    OperandType.axInd: 'address register indirect mode',
+    OperandType.axIndWithPostInc:
+        'address register indirect with postincrement mode',
+    OperandType.axIndWithPreDec:
+        'address register indirect with predecrement mode',
+    OperandType.axIndWithDisplacement:
+        'address register indirect with displacement mode',
+    OperandType.axIndWithIndex: 'address register indirect with index mode',
+    OperandType.absoluteWord: 'absolute word addressing mode',
+    OperandType.absoluteLongWord: 'absolute long word addressing mode',
+    OperandType.pcIndWithDisplacement:
+        'program counter indirect with displacement mode',
+    OperandType.pcIndWithIndex: 'program counter indirect with index mode',
+    OperandType.immediate: 'immediate data mode',
+    OperandType.ccr: 'condition code register mode',
+    OperandType.sr: 'status register mode',
+    OperandType.address: 'address mode',
+    OperandType.usp: 'user stack pointer mode',
+  }[type];
+}
+
+String operandTypeToStringShort(OperandType type) {
+  assert(type != null);
+  return {
+    OperandType.dx: 'Dn',
+    OperandType.ax: 'An',
+    OperandType.axInd: '(An)',
+    OperandType.axIndWithPostInc: '(An)+',
+    OperandType.axIndWithPreDec: '-(An)',
+    OperandType.axIndWithDisplacement: '(d, An)',
+    OperandType.axIndWithIndex: '(d, An, Xn.s)',
+    OperandType.absoluteWord: '(xxx).W',
+    OperandType.absoluteLongWord: '(xxx).L',
+    OperandType.pcIndWithDisplacement: '(d, PC)',
+    OperandType.pcIndWithIndex: '(d, PC, Xn.s)',
+    OperandType.immediate: '#xxx',
+    OperandType.ccr: 'CCR',
+    OperandType.sr: 'SR',
+    OperandType.address: 'address',
+    OperandType.usp: 'USP',
+  }[type];
+}
+
 // All means without CCR and SR
 const _typesAll = {
   OperandType.dx,

@@ -1,6 +1,6 @@
 import 'package:data_classes/data_classes.dart';
 
-import 'operation.dart';
+part 'operation.dart';
 
 class Program {
   final Map<Label, int> labelsToIndex;
