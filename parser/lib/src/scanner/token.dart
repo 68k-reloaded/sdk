@@ -2,22 +2,22 @@ import 'package:meta/meta.dart';
 
 enum TokenType {
   // Single-character tokens.
-  LEFT_PAREN,
-  RIGHT_PAREN,
-  COMMA,
-  DOT,
-  MINUS,
-  PLUS,
-  NUMBER_SIGN, // #
-  COLON,
+  leftParen,
+  rightParen,
+  comma,
+  dot,
+  minus,
+  plus,
+  numberSign, // #
+  colon,
 
   // Literals.
-  COMMENT,
-  IDENTIFIER,
-  STRING,
-  NUMBER,
+  comment,
+  identifier,
+  string,
+  number,
 
-  EOF
+  eof
 }
 
 class Token {
@@ -25,6 +25,20 @@ class Token {
   final int line;
   final String lexeme;
   final dynamic literal;
+
+  bool get isLeftParen => type == TokenType.leftParen;
+  bool get isRightParen => type == TokenType.rightParen;
+  bool get isComma => type == TokenType.comma;
+  bool get isDot => type == TokenType.dot;
+  bool get isMinus => type == TokenType.minus;
+  bool get isPlus => type == TokenType.plus;
+  bool get isNumberSign => type == TokenType.numberSign;
+  bool get isColon => type == TokenType.colon;
+  bool get isComment => type == TokenType.comment;
+  bool get isIdentifier => type == TokenType.identifier;
+  bool get isString => type == TokenType.string;
+  bool get isNumber => type == TokenType.number;
+  bool get isEof => type == TokenType.eof;
 
   Token({
     @required this.type,

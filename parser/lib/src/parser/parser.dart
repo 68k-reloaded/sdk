@@ -62,12 +62,12 @@ class Parser {
     for (var line = 0; line < maxLine; line++) {
       final lineTokens = tokensByLine[line] ?? [];
 
-      if (_startsWith(lineTokens, [TokenType.IDENTIFIER, TokenType.COLON])) {
+      if (_startsWith(lineTokens, [TokenType.identifier, TokenType.colon])) {
         labelsWaitingForCode[Label(lineTokens.first.literal)] = line;
       } else if (_startsWith(
-          lineTokens, [TokenType.DOT, TokenType.IDENTIFIER, TokenType.COLON])) {
+          lineTokens, [TokenType.dot, TokenType.identifier, TokenType.colon])) {
         labelsWaitingForCode[Label('.${lineTokens[1].literal}')] = line;
-      } else if (_startsWith(tokens, [TokenType.COMMENT])) {
+      } else if (_startsWith(tokens, [TokenType.comment])) {
         // This is a comment line. It's impossible to have anything after the
         // comment, because the comment comments out the line.
         assert(tokens.length == 1);
@@ -101,15 +101,14 @@ class Parser {
   }
 
   Statement _parseStatement(List<Token> tokens) {
-    if (!_startsWith(tokens, [TokenType.IDENTIFIER])) {
+    if (!_startsWith(tokens, [TokenType.identifier])) {
       throw ParserException('Identifier expected at the start of a statement.');
     }
     final name = tokens.removeAt(0);
-    final operands = <Statement>[];
 
     SizeStatement size;
 
-    if (_startsWith(tokens, [TokenType.DOT])) {
+    if (_startsWith(tokens, [TokenType.dot])) {
       tokens.removeAt(0);
       tryAndCatchError(() {
         _parseSizeStatement(tokens.removeAt(0));
@@ -117,14 +116,28 @@ class Parser {
     }
 
     final operandTokens = <List<Token>>[];
-
-    for (final token in operands) {
-      //_parseOperandStatement();
+    int start = 0;
+    int cursor = 0;
+    for (; cursor < tokens.length; cursor++) {
+      if (tokens[cursor].isComma) {
+        operandTokens.add(tokens.sublist(start, cursor));
+        start = cursor + 1;
+      }
     }
+
+    final operands = <OperandStatement>[];
+
+    for (final operandTokens in operandTokens) {
+      tryAndCatchError(() {
+        operands.add(_parseOperandStatement(operandTokens));
+      });
+    }
+
+    //return Statement
   }
 
   SizeStatement _parseSizeStatement(Token token) {
-    if (token.type != TokenType.IDENTIFIER) {
+    if (token.type != TokenType.identifier) {
       throw ParserException('Size expected here.');
     }
     final name = token.literal.toString().toUpperCase();
@@ -139,5 +152,13 @@ class Parser {
           "long word. But $name was given. That's not a valid size.");
     }
     return SizeStatement(line: line, size: size);
+  }
+
+  OperandStatement _parseOperandStatement(List<Token> tokens) {
+    return OperandStatement(
+      line: line,
+      operand: tokens.map((token) => token.lexeme).join(),
+      type: null,
+    );
   }
 }
