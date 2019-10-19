@@ -23,14 +23,6 @@ class Parser {
 
   int line = 0;
 
-  bool _startsWith(List<Token> tokens, List<TokenType> types) {
-    int cursor = 0;
-    while (cursor < tokens.length && tokens[cursor].type == types[cursor]) {
-      cursor++;
-    }
-    return cursor == types.length;
-  }
-
   void tryAndCatchError(void Function() callback) {
     try {
       callback();
@@ -60,14 +52,17 @@ class Parser {
     final labelsWaitingForCode = <Label, int>{};
 
     for (var line = 0; line < maxLine; line++) {
-      final lineTokens = tokensByLine[line] ?? [];
+      final tokens = tokensByLine[line] ?? [];
 
-      if (_startsWith(lineTokens, [TokenType.identifier, TokenType.colon])) {
-        labelsWaitingForCode[Label(lineTokens.first.literal)] = line;
-      } else if (_startsWith(
-          lineTokens, [TokenType.dot, TokenType.identifier, TokenType.colon])) {
-        labelsWaitingForCode[Label('.${lineTokens[1].literal}')] = line;
-      } else if (_startsWith(tokens, [TokenType.comment])) {
+      if (tokens.first.isIdentifier && tokens[1].isColon) {
+        // This is a global label line.
+        labelsWaitingForCode[Label(tokens.first.literal)] = line;
+      } else if (tokens.first.isDot &&
+          tokens[1].isIdentifier &&
+          tokens[2].isColon) {
+        // This is a local label line.
+        labelsWaitingForCode[Label('.${tokens[1].literal}')] = line;
+      } else if (tokens.first.isComment) {
         // This is a comment line. It's impossible to have anything after the
         // comment, because the comment comments out the line.
         assert(tokens.length == 1);
@@ -83,7 +78,7 @@ class Parser {
         });
 
         tryAndCatchError(() {
-          statements.add(_parseStatement(lineTokens));
+          statements.add(_parseStatement(tokens));
         });
       }
     }
@@ -101,14 +96,14 @@ class Parser {
   }
 
   Statement _parseStatement(List<Token> tokens) {
-    if (!_startsWith(tokens, [TokenType.identifier])) {
+    if (!tokens.first.isIdentifier) {
       throw ParserException('Identifier expected at the start of a statement.');
     }
     final name = tokens.removeAt(0);
 
     SizeStatement size;
 
-    if (_startsWith(tokens, [TokenType.dot])) {
+    if (tokens.first.isDot) {
       tokens.removeAt(0);
       tryAndCatchError(() {
         _parseSizeStatement(tokens.removeAt(0));
@@ -137,7 +132,7 @@ class Parser {
   }
 
   SizeStatement _parseSizeStatement(Token token) {
-    if (token.type != TokenType.identifier) {
+    if (!token.isIdentifier) {
       throw ParserException('Size expected here.');
     }
     final name = token.literal.toString().toUpperCase();
