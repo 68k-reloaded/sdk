@@ -1,3 +1,5 @@
+import 'dart:core';
+
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 
@@ -102,13 +104,63 @@ abstract class Parser {
         });
       }
 
-      return OperationStatement(
-        line: line,
-        operation:
-            null, // Use the [name] and [operands] to find the correct operation.
-        size: size,
-        operands: operands,
+      var operation = Operation.values.firstWhere(
+        (operation) => operation.code == name,
+        orElse: () => null,
       );
+
+      if (operation != null) {
+        final sizeMatchingConfigs = operation.configurations.where((operation) {
+          return operation.sizes.contains(size.size);
+        });
+
+        if (sizeMatchingConfigs.isEmpty) {
+          final supportedSizes = operation.configurations
+              .map((op) => op.sizes)
+              .reduce((a, b) => a.union(b))
+              .map(sizeToString);
+          throw ParserException("The operation $name only supports the sizes "
+              "${iterableToString(supportedSizes)}, but you tried to use it "
+              "with the size ${sizeToString(size.size)}. That doesn't work.");
+        }
+
+        final matchingConfigs = sizeMatchingConfigs.where((configuration) {
+          return IterableZip([configuration.operandTypes, operands])
+              .every((operands) {
+            final fittingTypes = operands.first as Set<OperandType>;
+            final actualType = (operands.last as OperandStatement).type;
+            return fittingTypes.contains(actualType);
+          });
+        });
+
+        if (matchingConfigs.isEmpty) {
+          final buffer = StringBuffer()
+            ..write("You provided operands of the types ")
+            ..write(iterableToString(
+              operands.map((operand) => operandTypeToString(operand.type)),
+            ))
+            ..write(". But the $name operation on size "
+                "${sizeToString(size.size)} doesn't accept operands of these "
+                "types. Here are all the combinations that are accepted:\n")
+            ..writeAll([
+              for (final config in sizeMatchingConfigs)
+                '- ${iterableToString(config.sizes)}'
+            ]);
+          throw ParserException(buffer.toString());
+        }
+
+        assert(matchingConfigs.length == 1);
+
+        return OperationStatement(
+          line: line,
+          operation: operation,
+          size: size,
+          operands: operands,
+        );
+      } else {
+        //return DirectiveStatement();
+        return null;
+      }
     }
 
     final tokensByLine = groupBy<Token, int>(

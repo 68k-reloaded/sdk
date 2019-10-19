@@ -2,6 +2,15 @@ part of 'statements.dart';
 
 enum Size { byte, word, longWord }
 
+String sizeToString(Size size) {
+  assert(size != null);
+  return {
+    Size.byte: 'byte',
+    Size.word: 'word',
+    Size.longWord: 'long word',
+  }[size];
+}
+
 const _sizesB = {Size.byte};
 const _sizesBW = {Size.byte, Size.word};
 const _sizesBL = {Size.byte, Size.longWord};
@@ -28,6 +37,51 @@ enum OperandType {
   address,
   usp,
 }
+
+String operandTypeToString(OperandType type) {
+  assert(type != null);
+  return {
+    dx: 'data register mode',
+    ax: 'address register mode',
+    axInd: 'address register indirect mode',
+    axIndWithPostInc: 'address register indirect with postincrement mode',
+    axIndWithPreDec: 'address register indirect with predecrement mode',
+    axIndWithDisplacement: 'address register indirect with displacement mode',
+    axIndWithIndex: 'address register indirect with index mode',
+    absoluteWord: 'absolute word addressing mode',
+    absoluteLongWord: 'absolute long word addressing mode',
+    pcIndWithDisplacement: 'program counter indirect with displacement mode',
+    pcIndWithIndex: 'program counter indirect with index mode',
+    immediate: 'immediate data mode',
+    ccr: 'condition code register mode',
+    sr: 'status register mode',
+    address: 'address mode',
+    usp: 'user stack pointer mode',
+  }[type];
+}
+
+String operandTypeToStringShort(OperandType type) {
+  assert(type != null);
+  return {
+    dx: 'Dn',
+    ax: 'An',
+    axInd: '(An)',
+    axIndWithPostInc: '(An)+',
+    axIndWithPreDec: '-(An)',
+    axIndWithDisplacement: '(d, An)',
+    axIndWithIndex: '(d, An, Xn.s)',
+    absoluteWord: '(xxx).W',
+    absoluteLongWord: '(xxx).L',
+    pcIndWithDisplacement: '(d, PC)',
+    pcIndWithIndex: '(d, PC, Xn.s)',
+    immediate: '#xxx',
+    ccr: 'CCR',
+    sr: 'SR',
+    address: 'address',
+    usp: 'USP',
+  }[type];
+}
+
 // All means without CCR and SR
 const _typesAll = {
   OperandType.dx,
