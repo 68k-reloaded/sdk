@@ -41,35 +41,35 @@ class Scanner {
 
     void parseDecimalNumber() {
       final number = advanceWhile(_isDecimalDigit);
-      addToken(TokenType.NUMBER, int.parse(number));
+      addToken(TokenType.number, int.parse(number));
     }
 
     void parseHexNumber() {
       final number = advanceWhile(_isHexDigit);
-      addToken(TokenType.NUMBER, int.parse(number, radix: 16));
+      addToken(TokenType.number, int.parse(number, radix: 16));
     }
 
     void parseComment() {
       final comment = advanceWhile((c) => c != '\n');
-      addToken(TokenType.COMMENT, comment);
+      addToken(TokenType.comment, comment);
     }
 
     void parseIdentifier() {
       final identifier = advanceWhile(_isLetterDigitUnderscore);
-      addToken(TokenType.IDENTIFIER, identifier);
+      addToken(TokenType.identifier, identifier);
     }
 
     void scanToken() {
       final c = advance();
       const singleCharTokens = {
-        '(': TokenType.LEFT_PAREN,
-        ')': TokenType.RIGHT_PAREN,
-        ',': TokenType.COMMA,
-        '.': TokenType.DOT,
-        '-': TokenType.MINUS,
-        '+': TokenType.PLUS,
-        '#': TokenType.NUMBER_SIGN,
-        ':': TokenType.COLON,
+        '(': TokenType.leftParen,
+        ')': TokenType.rightParen,
+        ',': TokenType.comma,
+        '.': TokenType.dot,
+        '-': TokenType.minus,
+        '+': TokenType.plus,
+        '#': TokenType.numberSign,
+        ':': TokenType.colon,
       };
 
       if (singleCharTokens.containsKey(c)) {
@@ -116,7 +116,7 @@ class Scanner {
       _start = _current;
       scanToken();
     }
-    tokens.add(Token(type: TokenType.EOF, line: _line));
+    tokens.add(Token(type: TokenType.eof, line: _line));
 
     return tokens;
   }

@@ -1,5 +1,4 @@
 import 'src/error.dart';
-import 'src/parser/parser.dart';
 import 'src/scanner/scanner.dart';
 
 void main() {
@@ -26,9 +25,10 @@ drawPaddle:
 
 void parse(String source) {
   final errorCollector = ErrorCollector();
-  final scanner = Scanner(source: source, errorCollector: errorCollector);
+  final tokens = Scanner.scan(
+    source: source,
+    errorCollector: errorCollector,
+  );
 
-  scanner.scanTokens();
-
-  scanner.tokens.forEach(print);
+  tokens.forEach(print);
 }
