@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
 
@@ -104,7 +102,13 @@ abstract class Parser {
         });
       }
 
-      //return Statement
+      return OperationStatement(
+        line: line,
+        operation:
+            null, // Use the [name] and [operands] to find the correct operation.
+        size: size,
+        operands: operands,
+      );
     }
 
     final tokensByLine = groupBy<Token, int>(
