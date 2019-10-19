@@ -18,6 +18,8 @@ class Scanner {
     '#': TokenType.numberSign,
     ':': TokenType.colon,
   };
+  static const _newline = ['\r', '\n'];
+  static const _whitespace = [' ', '\t'];
 
   static List<Token> scan({
     @required String source,
@@ -51,7 +53,7 @@ class Scanner {
   }) {
     assert(state != null);
     final raw = state.advanceWhile(selector);
-    state.addToken(TokenType.number, mapper(raw));
+    state.addToken(type, mapper(raw));
   }
 
   static void _parseDecimalNumber(_ScannerState state) => _parseToken(
@@ -69,7 +71,9 @@ class Scanner {
   static void _parseComment(_ScannerState state) => _parseToken(
         state: state,
         type: TokenType.comment,
-        selector: (c) => c != '\n',
+        selector: (c) => !_newline.contains(c),
+        // Trim the leading *
+        mapper: (c) => c.substring(1),
       );
   static void _parseIdentifier(_ScannerState state) => _parseToken(
         state: state,
@@ -107,9 +111,12 @@ class Scanner {
     }
 
     // Whitespace
-    if (' \t\r'.contains(c)) {
+    if (_whitespace.contains(c)) {
       return;
-    } else if (c == '\n') {
+    } else if (_newline.contains(c)) {
+      if (c == '\r' && state.peek() == '\n') {
+        state.advance();
+      }
       state.line++;
       return;
     }
@@ -143,7 +150,7 @@ class _ScannerState {
 
   String advance() => source[current++];
   String advanceWhile(bool Function(String char) predicate) {
-    while (predicate(peek())) {
+    while (predicate(peek()) && !isAtEnd) {
       advance();
     }
     return source.substring(start, current);
