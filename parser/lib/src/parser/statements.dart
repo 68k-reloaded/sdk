@@ -38,10 +38,20 @@ class CommentStatement implements Statement {
 }
 
 class OperationStatement implements Statement {
-  int line;
-  Operation operation;
-  SizeStatement size;
-  List<OperandStatement> operands;
+  final int line;
+  final Operation operation;
+  final SizeStatement size;
+  final List<OperandStatement> operands;
+
+  OperationStatement({
+    @required this.line,
+    @required this.operation,
+    @required this.size,
+    @required this.operands,
+  })  : assert(line != null),
+        assert(operation != null),
+        assert(size != null),
+        assert(operands != null);
 }
 
 class SizeStatement implements Statement {
