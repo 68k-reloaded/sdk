@@ -1,5 +1,7 @@
 import 'package:data_classes/data_classes.dart';
 
+import 'operation.dart';
+
 class Program {
   final Map<Label, int> labelsToIndex;
   final List<Statement> statements;
@@ -34,64 +36,6 @@ class CommentStatement implements Statement {
 
   String toString() => 'Comment: "$comment"';
 }
-
-enum Size { byte, word, longWord }
-
-const _sizesB = {Size.byte};
-const _sizesBWL = {Size.byte, Size.word, Size.longWord};
-
-enum OperandType {
-  dx,
-  ax,
-  axInd,
-  axIndWithPostInc,
-  axIndWithPreDec,
-  axIndWithDisplacement,
-  axIndWithIndex,
-  absoluteWord,
-  absoluteLongWord,
-  pcIndWithDisplacement,
-  pcIndWithIndex,
-  immediate,
-}
-
-class Operation {
-  final String code;
-  final Set<Size> sizes;
-  final List<Set<OperandType>> operandTypes;
-
-  const Operation({
-    @required this.code,
-    @required this.sizes,
-    @required this.operandTypes,
-  })  : assert(code != null),
-        assert(sizes != null),
-        assert(operandTypes != null);
-}
-
-const operations = {
-  Operation(
-    code: 'ADD',
-    sizes: _sizesBWL,
-    operandTypes: [
-      {
-        OperandType.dx,
-        OperandType.ax,
-        OperandType.axInd,
-        OperandType.axIndWithPostInc,
-        OperandType.axIndWithPreDec,
-        OperandType.axIndWithDisplacement,
-        OperandType.axIndWithIndex,
-        OperandType.absoluteWord,
-        OperandType.absoluteLongWord,
-        OperandType.pcIndWithDisplacement,
-        OperandType.pcIndWithIndex,
-        OperandType.immediate,
-      },
-      {OperandType.dx}
-    ],
-  ),
-};
 
 class OperationStatement implements Statement {
   int line;
