@@ -1,0 +1,19 @@
+name: m68k_reloaded_parser
+description: A
+version: 1.0.0+1
+authors:
+  - Marcel Garus <marcel.garus@gmail.com>
+  - Jonas Wanke <contact@wanke.dev>
+homepage: https://github.com/m68k-reloaded/sdk
+
+environment:
+  sdk: ">=2.3.0 <3.0.0"
+
+dependencies:
+  data_classes: ^2.0.3
+  meta: ^1.1.7
+  collection: ^1.14.12
+
+dev_dependencies:
+  build_runner: ^1.7.1
+  data_classes_generator: ^2.0.3
