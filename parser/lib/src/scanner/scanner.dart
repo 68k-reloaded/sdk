@@ -16,25 +16,25 @@ class Scanner {
     assert(errorCollector != null);
     final tokens = <Token>[];
 
-    int _start = 0;
-    int _current = 0;
-    int _line = 1;
+    int start = 0;
+    int current = 0;
+    int line = 1;
 
-    bool isAtEnd() => _current >= source.length;
-    String peek() => isAtEnd() ? '\0' : source[_current];
-    String advance() => source[_current++];
+    bool isAtEnd() => current >= source.length;
+    String peek() => isAtEnd() ? '\0' : source[current];
+    String advance() => source[current++];
     String advanceWhile(bool Function(String char) predicate) {
       while (predicate(peek())) {
         advance();
       }
-      return source.substring(_start, _current);
+      return source.substring(start, current);
     }
 
     void addToken(TokenType type, [dynamic literal]) {
       tokens.add(Token(
         type: type,
-        line: _line,
-        lexeme: source.substring(_start, _current),
+        line: line,
+        lexeme: source.substring(start, current),
         literal: literal,
       ));
     }
@@ -61,6 +61,7 @@ class Scanner {
 
     void scanToken() {
       final c = advance();
+
       const singleCharTokens = {
         '(': TokenType.leftParen,
         ')': TokenType.rightParen,
@@ -71,52 +72,53 @@ class Scanner {
         '#': TokenType.numberSign,
         ':': TokenType.colon,
       };
-
       if (singleCharTokens.containsKey(c)) {
         addToken(singleCharTokens[c]);
         return;
       }
 
+      // Numbers
       if (_isDecimalDigit(c)) {
         parseDecimalNumber();
         return;
       }
-
       if (c == '\$') {
         parseHexNumber();
         return;
       }
 
+      // Comment
       if (c == '*') {
         parseComment();
         return;
       }
 
+      // Whitespace
       if (' \t\r'.contains(c)) {
         return;
       }
-
       if (c == '\n') {
-        _line++;
+        line++;
         return;
       }
 
+      // Identifier
       if (_isLetterDigitUnderscore(c)) {
         parseIdentifier();
         return;
       }
 
       errorCollector.add(Error(
-        line: _line,
+        line: line,
         message: 'Unexpected character $c.',
       ));
     }
 
     while (!isAtEnd()) {
-      _start = _current;
+      start = current;
       scanToken();
     }
-    tokens.add(Token(type: TokenType.eof, line: _line));
+    tokens.add(Token(type: TokenType.eof, line: line));
 
     return tokens;
   }
