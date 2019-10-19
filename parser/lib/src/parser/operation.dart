@@ -1,3 +1,5 @@
+part of 'statements.dart';
+
 enum Size { byte, word, longWord }
 
 const _sizesB = {Size.byte};
