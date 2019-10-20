@@ -13,7 +13,6 @@ class Scanner {
     ')': TokenType.rightParen,
     ',': TokenType.comma,
     '.': TokenType.dot,
-    '-': TokenType.minus,
     '+': TokenType.plus,
     '#': TokenType.numberSign,
     ':': TokenType.colon,
@@ -31,7 +30,7 @@ class Scanner {
     final state = _ScannerState(source);
     while (!state.isAtEnd) {
       state.start = state.current;
-      _scanToken(state: state, errorCollector: errorCollector);
+      _scanNextToken(state: state, errorCollector: errorCollector);
     }
 
     state.addToken(TokenType.eof);
@@ -62,12 +61,18 @@ class Scanner {
         selector: _isDecimalDigit,
         mapper: (raw) => int.parse(raw),
       );
-  static void _parseHexNumber(_ScannerState state) => _parseToken(
+  static void _parseHexNumber(_ScannerState state) {
+    assert(state != null);
+
+    if (state.peek() == '-') state.advance();
+    _parseToken(
         state: state,
         type: TokenType.number,
         selector: _isHexDigit,
-        mapper: (raw) => int.parse(raw, radix: 16),
+        // Trim the leading $
+        mapper: (raw) => int.parse(raw.substring(1), radix: 16),
       );
+  }
   static void _parseComment(_ScannerState state) => _parseToken(
         state: state,
         type: TokenType.comment,
@@ -81,7 +86,7 @@ class Scanner {
         selector: _isLetterDigitUnderscore,
       );
 
-  static void _scanToken({
+  static void _scanNextToken({
     @required _ScannerState state,
     @required ErrorCollector errorCollector,
   }) {
@@ -96,11 +101,14 @@ class Scanner {
     }
 
     // Numbers
-    if (_isDecimalDigit(c)) {
+    if (_isDecimalDigit(c) || (c == '-' && _isDecimalDigit(state.peek()))) {
       _parseDecimalNumber(state);
       return;
     } else if (c == '\$') {
       _parseHexNumber(state);
+      return;
+    } else if (c == '-') {
+      state.addToken(TokenType.minus);
       return;
     }
 
