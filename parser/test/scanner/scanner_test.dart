@@ -10,46 +10,52 @@ void main() {
       errorCollector = ErrorCollector();
     });
 
-    void checkEndsWithEof(List<Token> tokens) =>
-        expect(tokens.last.isEof, isTrue);
-    void checkForSingleContentToken(List<Token> tokens, TokenType type) {
-      expect(tokens, hasLength(2));
-      expect(tokens.first.type, equals(type));
-      checkEndsWithEof(tokens);
+    Token createToken(
+      TokenType type,
+      String lexeme, {
+      dynamic literal = null,
+      int line = 1,
+    }) =>
+        Token(type: type, line: line, lexeme: lexeme, literal: literal);
+
+    void expectScannedTokens(
+      String source,
+      List<Token> expected, {
+      int lineCount = 1,
+    }) {
+      expect(
+        Scanner.scan(
+          source: source,
+          errorCollector: errorCollector,
+        ),
+        equals([
+          ...expected,
+          createToken(TokenType.eof, '', line: lineCount),
+        ]),
+      );
+      expect(errorCollector.errors.asList(), isEmpty);
     }
 
-    void checkNoErrors() => expect(errorCollector.errors.asList(), isEmpty);
-
-    List<Token> scan(String source) =>
-        Scanner.scan(source: source, errorCollector: errorCollector);
-
     test('empty String', () {
-      final tokens = scan('');
-      expect(tokens, hasLength(1));
-      checkEndsWithEof(tokens);
-      checkNoErrors();
+      expectScannedTokens('', []);
     });
     test('whitespace', () {
-      final tokens = scan(' \t');
-      expect(tokens, hasLength(1));
-      checkEndsWithEof(tokens);
-      checkNoErrors();
+      expectScannedTokens(' \t', []);
     });
     test('empty lines', () {
-      final tokens = scan('\n\r\n');
-      expect(tokens, hasLength(1));
-      checkEndsWithEof(tokens);
-      checkNoErrors();
+      expectScannedTokens('\n\r\n', [], lineCount: 3);
     });
     test('with correct line counting', () {
-      final tokens = scan('*1\n*2\r*3\r\n*4');
-      expect(tokens, hasLength(5));
-      expect(tokens[0].line, equals(1));
-      expect(tokens[1].line, equals(2));
-      expect(tokens[2].line, equals(3));
-      expect(tokens[3].line, equals(4));
-      checkEndsWithEof(tokens);
-      checkNoErrors();
+      expectScannedTokens(
+        '*1\n*2\r*3\r\n*4',
+        [
+          createToken(TokenType.comment, '*1', line: 1, literal: '1'),
+          createToken(TokenType.comment, '*2', line: 2, literal: '2'),
+          createToken(TokenType.comment, '*3', line: 3, literal: '3'),
+          createToken(TokenType.comment, '*4', line: 4, literal: '4'),
+        ],
+        lineCount: 4,
+      );
     });
 
     group('single token:', () {
@@ -64,36 +70,28 @@ void main() {
         ':': TokenType.colon,
       }.forEach(
         (token, type) => test(_enumToString(type), () {
-          final tokens = scan(token);
-          checkForSingleContentToken(tokens, type);
-          checkNoErrors();
+          expectScannedTokens(token, [createToken(type, token)]);
         }),
       );
     });
 
     group('comment:', () {
       test('empty', () {
-        final tokens = scan('*');
-        checkForSingleContentToken(tokens, TokenType.comment);
-        expect(tokens.first.literal, isA<String>());
-        expect(tokens.first.literal, isEmpty);
-        checkNoErrors();
+        expectScannedTokens('*', [
+          createToken(TokenType.comment, '*', literal: ''),
+        ]);
       });
       test('simple', () {
-        final tokens = scan('*comment...');
-        checkForSingleContentToken(tokens, TokenType.comment);
-        expect(tokens.first.literal, isA<String>());
-        expect(tokens.first.literal, equals('comment...'));
-        checkNoErrors();
+        expectScannedTokens('*comment...', [
+          createToken(TokenType.comment, '*comment...', literal: 'comment...'),
+        ]);
       });
       test('unicode', () {
         final unicode =
             'äöüß é¡™£¢∞§¶•ªº–≠製漢語 ด้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็็้้้้้้้้็็็็็้้้้้็็็็❤️🇺🇸🇷🇺🇸 Ṱ̺̺̕o͞ ̷i̲̬͇̪͙n̝̗͕v̟̜̘̦͟o̶̙̰̠kè͚̮̺̪̹̱̤ ᴉlɐ';
-        final tokens = scan('*$unicode');
-        checkForSingleContentToken(tokens, TokenType.comment);
-        expect(tokens.first.literal, isA<String>());
-        expect(tokens.first.literal, equals(unicode));
-        checkNoErrors();
+        expectScannedTokens('*$unicode', [
+          createToken(TokenType.comment, '*$unicode', literal: unicode),
+        ]);
       });
 
       <String, String>{
@@ -101,11 +99,10 @@ void main() {
         'tab': '\t',
       }.forEach((name, char) {
         test('with whitespace ($name)', () {
-          final tokens = scan('*${char}comment...');
-          checkForSingleContentToken(tokens, TokenType.comment);
-          expect(tokens.first.literal, isA<String>());
-          expect(tokens.first.literal, equals('${char}comment...'));
-          checkNoErrors();
+          final comment = '${char}comment...';
+          expectScannedTokens('*$comment', [
+            createToken(TokenType.comment, '*$comment', literal: comment),
+          ]);
         });
       });
     });
@@ -116,14 +113,16 @@ void main() {
         'id',
         '_id',
         'id123',
+        'D0',
+        'D7',
+        'A0',
+        'A7',
         'Loremipsumdolorsitametconsecteturadipiscingelit_Maurisvitaeerosblanditipsumviverraposuereetanibh_Curabiturnislmetuslaciniautmagnaultricieselementumtempormassa',
       ].forEach((identifier) {
         test('valid ($identifier)', () {
-          final tokens = scan(identifier);
-          checkForSingleContentToken(tokens, TokenType.identifier);
-          expect(tokens.first.literal, isA<String>());
-          expect(tokens.first.literal, equals(identifier));
-          checkNoErrors();
+          expectScannedTokens(identifier, [
+            createToken(TokenType.identifier, identifier, literal: identifier),
+          ]);
         });
       });
     });
@@ -148,11 +147,85 @@ void main() {
         '\$1234567890': 0x1234567890,
       }.forEach((raw, expected) {
         test('valid ($raw)', () {
-          final tokens = scan(raw);
-          checkForSingleContentToken(tokens, TokenType.number);
-          expect(tokens.first.literal, isA<int>());
-          expect(tokens.first.literal, equals(expected));
-          checkNoErrors();
+          expectScannedTokens(raw, [
+            createToken(TokenType.number, raw, literal: expected),
+          ]);
+        });
+      });
+    });
+
+    group('line:', () {
+      <String, List<Token>>{
+        'label:': [
+          createToken(TokenType.identifier, 'label', literal: 'label'),
+          createToken(TokenType.colon, ':'),
+        ],
+        'ADD D0, D1': [
+          createToken(TokenType.identifier, 'ADD', literal: 'ADD'),
+          createToken(TokenType.identifier, 'D0', literal: 'D0'),
+          createToken(TokenType.comma, ','),
+          createToken(TokenType.identifier, 'D1', literal: 'D1'),
+        ],
+        'ADD.B D0, D1': [
+          createToken(TokenType.identifier, 'ADD', literal: 'ADD'),
+          createToken(TokenType.dot, '.'),
+          createToken(TokenType.identifier, 'B', literal: 'B'),
+          createToken(TokenType.identifier, 'D0', literal: 'D0'),
+          createToken(TokenType.comma, ','),
+          createToken(TokenType.identifier, 'D1', literal: 'D1'),
+        ],
+        ' ADD        D0,D1': [
+          createToken(TokenType.identifier, 'ADD', literal: 'ADD'),
+          createToken(TokenType.identifier, 'D0', literal: 'D0'),
+          createToken(TokenType.comma, ','),
+          createToken(TokenType.identifier, 'D1', literal: 'D1'),
+        ],
+        'label: ADD D0, D1': [
+          createToken(TokenType.identifier, 'label', literal: 'label'),
+          createToken(TokenType.colon, ':'),
+          createToken(TokenType.identifier, 'ADD', literal: 'ADD'),
+          createToken(TokenType.identifier, 'D0', literal: 'D0'),
+          createToken(TokenType.comma, ','),
+          createToken(TokenType.identifier, 'D1', literal: 'D1'),
+        ],
+        'MOVE.B #42,D1': [
+          createToken(TokenType.identifier, 'MOVE', literal: 'MOVE'),
+          createToken(TokenType.dot, '.'),
+          createToken(TokenType.identifier, 'B', literal: 'B'),
+          createToken(TokenType.numberSign, '#'),
+          createToken(TokenType.number, '42', literal: 42),
+          createToken(TokenType.comma, ','),
+          createToken(TokenType.identifier, 'D1', literal: 'D1'),
+        ],
+        'MOVE.W (A0),D3': [
+          createToken(TokenType.identifier, 'MOVE', literal: 'MOVE'),
+          createToken(TokenType.dot, '.'),
+          createToken(TokenType.identifier, 'W', literal: 'W'),
+          createToken(TokenType.leftParen, '('),
+          createToken(TokenType.identifier, 'A0', literal: 'A0'),
+          createToken(TokenType.rightParen, ')'),
+          createToken(TokenType.comma, ','),
+          createToken(TokenType.identifier, 'D3', literal: 'D3'),
+        ],
+        'MOVE.W (123, A0), (A1)- * comment': [
+          createToken(TokenType.identifier, 'MOVE', literal: 'MOVE'),
+          createToken(TokenType.dot, '.'),
+          createToken(TokenType.identifier, 'W', literal: 'W'),
+          createToken(TokenType.leftParen, '('),
+          createToken(TokenType.number, '123', literal: 123),
+          createToken(TokenType.comma, ','),
+          createToken(TokenType.identifier, 'A0', literal: 'A0'),
+          createToken(TokenType.rightParen, ')'),
+          createToken(TokenType.comma, ','),
+          createToken(TokenType.leftParen, '('),
+          createToken(TokenType.identifier, 'A1', literal: 'A1'),
+          createToken(TokenType.rightParen, ')'),
+          createToken(TokenType.minus, '-'),
+          createToken(TokenType.comment, '* comment', literal: ' comment'),
+        ],
+      }.forEach((raw, expected) {
+        test('"$raw"', () {
+          expectScannedTokens(raw, expected);
         });
       });
     });

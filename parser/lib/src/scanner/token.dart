@@ -1,3 +1,4 @@
+import 'package:data_classes/data_classes.dart';
 import 'package:meta/meta.dart';
 
 enum TokenType {
@@ -51,4 +52,12 @@ class Token {
   String toString() {
     return '${type.toString().substring('TokenType.'.length)} at $line: "$lexeme" (Literal: $literal)';
   }
+
+  bool operator ==(Object other) =>
+      other is Token &&
+      type == other.type &&
+      line == other.line &&
+      lexeme == other.lexeme &&
+      literal == other.literal;
+  int get hashCode => hashList([type, line, lexeme, literal]);
 }
