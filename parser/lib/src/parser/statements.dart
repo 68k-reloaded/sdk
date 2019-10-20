@@ -3,7 +3,7 @@ import 'package:data_classes/data_classes.dart';
 part 'operation.dart';
 
 class Program {
-  final Map<Label, int> labelsToIndex;
+  final Map<LabelStatement, int> labelsToIndex;
   final List<Statement> statements;
 
   Program({@required this.labelsToIndex, @required this.statements})
@@ -11,9 +11,12 @@ class Program {
         assert(statements != null);
 }
 
-class Label {
-  Label(this.name);
+class LabelStatement implements Statement {
+  LabelStatement({@required this.line, @required this.name})
+      : assert(line != null),
+        assert(name != null);
 
+  final int line;
   final String name;
 
   bool get isLocal => name.startsWith('.');
