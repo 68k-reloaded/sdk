@@ -29,62 +29,13 @@ class Scanner {
 
     final state = _ScannerState(source);
     while (!state.isAtEnd) {
-      state.start = state.current;
       _scanNextToken(state: state, errorCollector: errorCollector);
+      state.start = state.current;
     }
 
     state.addToken(TokenType.eof);
     return state.tokens;
   }
-
-  static bool _isDecimalDigit(String c) => '1234567890'.contains(c);
-  static bool _isHexDigit(String c) => '1234567890ABCDEFabcdef'.contains(c);
-
-  static bool _isLetterDigitUnderscore(String c) =>
-      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_'.contains(c) ||
-      _isDecimalDigit(c);
-
-  static void _parseToken<T>({
-    @required _ScannerState state,
-    @required TokenType type,
-    @required bool Function(String char) selector,
-    dynamic Function(String raw) mapper = it,
-  }) {
-    assert(state != null);
-    final raw = state.advanceWhile(selector);
-    state.addToken(type, mapper(raw));
-  }
-
-  static void _parseDecimalNumber(_ScannerState state) => _parseToken(
-        state: state,
-        type: TokenType.number,
-        selector: _isDecimalDigit,
-        mapper: (raw) => int.parse(raw),
-      );
-  static void _parseHexNumber(_ScannerState state) {
-    assert(state != null);
-
-    if (state.peek() == '-') state.advance();
-    _parseToken(
-        state: state,
-        type: TokenType.number,
-        selector: _isHexDigit,
-        // Trim the leading $
-        mapper: (raw) => int.parse(raw.substring(1), radix: 16),
-      );
-  }
-  static void _parseComment(_ScannerState state) => _parseToken(
-        state: state,
-        type: TokenType.comment,
-        selector: (c) => !_newline.contains(c),
-        // Trim the leading *
-        mapper: (c) => c.substring(1),
-      );
-  static void _parseIdentifier(_ScannerState state) => _parseToken(
-        state: state,
-        type: TokenType.identifier,
-        selector: _isLetterDigitUnderscore,
-      );
 
   static void _scanNextToken({
     @required _ScannerState state,
@@ -140,6 +91,56 @@ class Scanner {
       message: 'Unexpected character $c.',
     ));
   }
+
+  static bool _isDecimalDigit(String c) => '1234567890'.contains(c);
+  static bool _isHexDigit(String c) => '1234567890ABCDEFabcdef'.contains(c);
+
+  static bool _isLetterDigitUnderscore(String c) =>
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_'.contains(c) ||
+      _isDecimalDigit(c);
+
+  static void _parseToken<T>({
+    @required _ScannerState state,
+    @required TokenType type,
+    @required bool Function(String char) selector,
+    dynamic Function(String raw) mapper = it,
+  }) {
+    assert(state != null);
+    final raw = state.advanceWhile(selector);
+    state.addToken(type, mapper(raw));
+  }
+
+  static void _parseDecimalNumber(_ScannerState state) => _parseToken(
+        state: state,
+        type: TokenType.number,
+        selector: _isDecimalDigit,
+        mapper: (raw) => int.parse(raw),
+      );
+  static void _parseHexNumber(_ScannerState state) {
+    assert(state != null);
+
+    if (state.peek() == '-') state.advance();
+    _parseToken(
+      state: state,
+      type: TokenType.number,
+      selector: _isHexDigit,
+      // Trim the leading $
+      mapper: (raw) => int.parse(raw.substring(1), radix: 16),
+    );
+  }
+
+  static void _parseComment(_ScannerState state) => _parseToken(
+        state: state,
+        type: TokenType.comment,
+        selector: (c) => !_newline.contains(c),
+        // Trim the leading *
+        mapper: (c) => c.substring(1),
+      );
+  static void _parseIdentifier(_ScannerState state) => _parseToken(
+        state: state,
+        type: TokenType.identifier,
+        selector: _isLetterDigitUnderscore,
+      );
 }
 
 class _ScannerState {
@@ -153,7 +154,7 @@ class _ScannerState {
   final tokens = <Token>[];
 
   bool get isAtEnd => current >= source.length;
-  String peek() => isAtEnd ? '\0' : source[current];
+  String peek() => isAtEnd ? '\x00' : source[current];
   String get currentLexeme => source.substring(start, current);
 
   String advance() => source[current++];
