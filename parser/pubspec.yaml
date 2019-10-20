@@ -1,10 +1,10 @@
 name: m68k_reloaded_parser
-description: A
-version: 1.0.0+1
+description: Compiler for Motorola 68000 Assembly converting source code into statements
+version: 0.0.1
 authors:
   - Marcel Garus <marcel.garus@gmail.com>
   - Jonas Wanke <contact@wanke.dev>
-homepage: https://github.com/m68k-reloaded/sdk
+homepage: https://github.com/m68k-reloaded/sdk/tree/master/parser
 
 environment:
   sdk: ">=2.3.0 <3.0.0"
