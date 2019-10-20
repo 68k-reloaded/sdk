@@ -53,7 +53,7 @@ void main() {
     });
 
     group('single token:', () {
-      final singleTokens = {
+      <String, TokenType>{
         '(': TokenType.leftParen,
         ')': TokenType.rightParen,
         ',': TokenType.comma,
@@ -62,8 +62,7 @@ void main() {
         '+': TokenType.plus,
         '#': TokenType.numberSign,
         ':': TokenType.colon,
-      };
-      singleTokens.forEach(
+      }.forEach(
         (token, type) => test(_enumToString(type), () {
           final tokens = scan(token);
           checkForSingleContentToken(tokens, type);
@@ -97,8 +96,10 @@ void main() {
         checkNoErrors();
       });
 
-      final whitespace = {'space': ' ', 'tab': '\t'};
-      whitespace.forEach((name, char) {
+      <String, String>{
+        'space': ' ',
+        'tab': '\t',
+      }.forEach((name, char) {
         test('with whitespace ($name)', () {
           final tokens = scan('*${char}comment...');
           checkForSingleContentToken(tokens, TokenType.comment);
@@ -110,18 +111,47 @@ void main() {
     });
 
     group('identifier:', () {
-      final shouldWork = {
-        'single char': 'i',
-        'short': 'id',
-        'long':
-            'Loremipsumdolorsitametconsecteturadipiscingelit_Maurisvitaeerosblanditipsumviverraposuereetanibh_Curabiturnislmetuslaciniautmagnaultricieselementumtempormassa_Sedaliqueteliturnanonauctornuncfeugiata_Maurissedsemperarcueurutrumlorem_Etiamutaugueeuipsummollisconsecteturnecsuscipiteros_Curabiturpellentesqueturpisaugueetcursusnuncsagittisat_Aeneanconguevestibulumenimnonpellentesque_Fuscelobortisexaquamplaceratsollicitudinimperdietarcuvehicula_Fuscepulvinarcommodoodio_Integergravidaportarisusegetsemper_Utpellentesquejustoatdignissimornare_Praesentsagittisnequevitaemetuspulvinaraliquam_Nullaeuvulputateenimidposuerelectus_Namsemperligulanibhvelviverraerategestasac',
-      };
-      shouldWork.forEach((name, identifier) {
-        test(name, () {
+      [
+        'i',
+        'id',
+        '_id',
+        'id123',
+        'Loremipsumdolorsitametconsecteturadipiscingelit_Maurisvitaeerosblanditipsumviverraposuereetanibh_Curabiturnislmetuslaciniautmagnaultricieselementumtempormassa',
+      ].forEach((identifier) {
+        test('valid ($identifier)', () {
           final tokens = scan(identifier);
           checkForSingleContentToken(tokens, TokenType.identifier);
           expect(tokens.first.literal, isA<String>());
           expect(tokens.first.literal, equals(identifier));
+          checkNoErrors();
+        });
+      });
+    });
+
+    group('number:', () {
+      <String, int>{
+        '-1234567890': -1234567890,
+        '-12': -12,
+        '-1': -1,
+        '0': 0,
+        '1': 1,
+        '2': 2,
+        '12': 12,
+        '1234567890': 1234567890,
+        '\$-1234567890': -0x1234567890,
+        '\$-12': -0x12,
+        '\$-1': -0x1,
+        '\$0': 0x0,
+        '\$1': 0x1,
+        '\$2': 0x2,
+        '\$12': 0x12,
+        '\$1234567890': 0x1234567890,
+      }.forEach((raw, expected) {
+        test('valid ($raw)', () {
+          final tokens = scan(raw);
+          checkForSingleContentToken(tokens, TokenType.number);
+          expect(tokens.first.literal, isA<int>());
+          expect(tokens.first.literal, equals(expected));
           checkNoErrors();
         });
       });
