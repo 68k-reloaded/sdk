@@ -1,12 +1,14 @@
 import 'package:kt_dart/collection.dart';
 import 'package:meta/meta.dart';
 
+import 'location.dart';
+
 class Error {
-  final int line;
+  final Location location;
   final String message;
 
-  Error({@required this.line, @required this.message})
-      : assert(line != null),
+  Error({@required this.location, @required this.message})
+      : assert(location != null),
         assert(message != null);
 }
 

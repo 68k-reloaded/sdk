@@ -1,6 +1,8 @@
 import 'package:data_classes/data_classes.dart';
 import 'package:meta/meta.dart';
 
+import '../location.dart';
+
 enum TokenType {
   // Single-character tokens.
   leftParen,
@@ -23,7 +25,7 @@ enum TokenType {
 
 class Token {
   final TokenType type;
-  final int line;
+  final Location location;
   final String lexeme;
   final dynamic literal;
 
@@ -43,21 +45,21 @@ class Token {
 
   Token({
     @required this.type,
-    @required this.line,
+    @required this.location,
     this.lexeme,
     this.literal,
   })  : assert(type != null),
-        assert(line != null);
+        assert(location != null);
 
   String toString() {
-    return '${type.toString().substring('TokenType.'.length)} at $line: "$lexeme" (Literal: $literal)';
+    return '${type.toString().substring('TokenType.'.length)} at $location: "$lexeme" (Literal: $literal)';
   }
 
   bool operator ==(Object other) =>
       other is Token &&
       type == other.type &&
-      line == other.line &&
+      location == other.location &&
       lexeme == other.lexeme &&
       literal == other.literal;
-  int get hashCode => hashList([type, line, lexeme, literal]);
+  int get hashCode => hashList([type, location, lexeme, literal]);
 }

@@ -1,6 +1,7 @@
 import 'package:meta/meta.dart';
 
 import '../error.dart';
+import '../location.dart';
 import 'token.dart';
 
 export 'token.dart';
@@ -30,7 +31,6 @@ class Scanner {
     final state = _ScannerState(source);
     while (!state.isAtEnd) {
       _scanNextToken(state: state, errorCollector: errorCollector);
-      state.start = state.current;
     }
 
     state.addToken(TokenType.eof);
@@ -71,12 +71,16 @@ class Scanner {
 
     // Whitespace
     if (_whitespace.contains(c)) {
+      state.col++;
+      state.start = state.current;
       return;
     } else if (_newline.contains(c)) {
       if (c == '\r' && state.peek() == '\n') {
         state.advance();
       }
       state.line++;
+      state.start = state.current;
+      state.col = 1;
       return;
     }
 
@@ -87,7 +91,7 @@ class Scanner {
     }
 
     errorCollector.add(Error(
-      line: state.line,
+      location: state.location,
       message: 'Unexpected character $c.',
     ));
   }
@@ -103,12 +107,14 @@ class Scanner {
     @required _ScannerState state,
     @required TokenType type,
     @required bool Function(String char) selector,
-    dynamic Function(String raw) mapper = it,
+    dynamic Function(String raw) mapper = _it,
   }) {
     assert(state != null);
     final raw = state.advanceWhile(selector);
     state.addToken(type, mapper(raw));
   }
+
+  static T _it<T>(T value) => value;
 
   static void _parseDecimalNumber(_ScannerState state) => _parseToken(
         state: state,
@@ -149,8 +155,10 @@ class _ScannerState {
   final String source;
 
   int start = 0;
-  int current = 0;
   int line = 1;
+  int col = 1;
+  Location get location => Location(line: line, col: col);
+  int current = 0;
   final tokens = <Token>[];
 
   bool get isAtEnd => current >= source.length;
@@ -158,6 +166,7 @@ class _ScannerState {
   String get currentLexeme => source.substring(start, current);
 
   String advance() => source[current++];
+
   String advanceWhile(bool Function(String char) predicate) {
     while (predicate(peek()) && !isAtEnd) {
       advance();
@@ -168,11 +177,11 @@ class _ScannerState {
   void addToken(TokenType type, [dynamic literal]) {
     tokens.add(Token(
       type: type,
-      line: line,
+      location: location,
       lexeme: currentLexeme,
       literal: literal,
     ));
+    col += current - start;
+    start = current;
   }
 }
-
-T it<T>(T value) => value;
