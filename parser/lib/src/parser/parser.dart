@@ -33,7 +33,7 @@ abstract class Parser {
 
     final tokensByLine = groupBy<Token, int>(
       tokens,
-      (Token token) => token.line,
+      (Token token) => token.location.line,
     );
 
     final labelsWaitingForCode = <LabelStatement>{};
@@ -42,7 +42,7 @@ abstract class Parser {
       // Global label line.
       if (tokens.first.isIdentifier && tokens[1].isColon) {
         labelsWaitingForCode.add(LabelStatement(
-          line: line,
+          location: tokens.first.location,
           name: tokens.first.literal,
         ));
         tokens.removeRange(0, 2);
@@ -51,22 +51,25 @@ abstract class Parser {
       // Local label line.
       if (tokens.first.isDot && tokens[1].isIdentifier && tokens[2].isColon) {
         labelsWaitingForCode.add(LabelStatement(
-          line: line,
+          location: tokens.first.location,
           name: '.${tokens[1].literal}',
         ));
         tokens.removeRange(0, 3);
       }
 
       // Comment at the end of the line.
-      String comment;
+      Token comment;
       if (tokens.last.isComment) {
-        comment = tokens.last.literal;
+        comment = tokens.last;
         tokens.removeLast();
       }
 
       if (tokens.isEmpty) {
         if (comment != null) {
-          statements.add(CommentStatement(line: line, comment: comment));
+          statements.add(CommentStatement(
+            location: comment.location,
+            comment: comment.literal,
+          ));
         }
       }
 
@@ -84,7 +87,7 @@ abstract class Parser {
     // Once we parsed the file, there should be no labels waiting for code.
     for (final label in labelsWaitingForCode) {
       errorCollector.add(Error(
-        line: label.line,
+        location: label.location,
         message: "There should be code after labels, but label $label isn't "
             "followed by any statements.",
       ));
@@ -126,7 +129,7 @@ abstract class Parser {
     assert(state.advance().isColon);
 
     return LabelStatement(
-      line: state.line,
+      location: identifier.location,
       name: identifier.literal,
     );
   }
@@ -154,9 +157,8 @@ abstract class Parser {
     // [operands]. It's time to see if there actually exists an operation or
     // directive which matches that signature!
 
-    var operation = Operation.values.firstWhere(
+    var operation = Operation.values.firstOrNull(
       (operation) => operation.code == identifier.literal,
-      orElse: () => null,
     );
 
     if (operation != null) {
@@ -169,7 +171,7 @@ abstract class Parser {
       });
 
       return OperationStatement(
-        line: state.line,
+        location: identifier.location,
         operation: operation,
         size: size,
         operands: operands,
@@ -197,34 +199,69 @@ abstract class Parser {
           "A size was expected. That's either B for byte, W for word or L for "
           "long word. But $name was given. That's not a valid size.");
     }
-    return SizeStatement(line: state.line, size: size);
+    return SizeStatement(location: token.location, size: size);
   }
 
   static OperandStatement parseOperand(_LineParserState state) {
-    OperandType type;
-
     Token expect(TokenType type, {OperandType operandType, String expected}) {
       final expectedMessage = StringBuffer(expected);
       if (operandType != null) {
         expectedMessage.write(' for an ${operandTypeToStringShort(operandType)}'
             'operand (\'${operandTypeToString(operandType)}\')');
       }
-      state.expect(type, expected: expectedMessage.toString());
+      return state.expect(type, expected: expectedMessage.toString());
     }
+
+    RegisterStatement parseRegister(Token token) {
+      final token = state.advance();
+      final lexeme = token.lexeme;
+      if (!token.isIdentifier ||
+          !lexeme.startsWith('A') && !lexeme.startsWith('D')) {
+        throw ParserException('Expected register, but found ${token.lexeme}.');
+      }
+      if (lexeme == 'PC') {
+        return PcRegisterStatement(location: token.location);
+      }
+      final index = int.tryParse(lexeme.substring(1));
+      if (index == null) {
+        throw ParserException(
+            'Expected a register index, but found ${lexeme.substring(1)}.');
+      }
+      if (lexeme.startsWith('A')) {
+        return AxRegisterStatement(location: token.location, index: index);
+      } else {
+        return DxRegisterStatement(location: token.location, index: index);
+      }
+    }
+
+    RegisterStatement expectRegister<T>(Token token) {
+      final register = parseRegister(token);
+      if (register is T) {
+        return register;
+      }
+      throw ParserException(
+          'Expected register of type $T, but actually found register of type '
+          '${token.runtimeType}.');
+    }
+
+    final location = state.peek().location;
 
     // Dn, An, CCR, SR, USP or immediate with label.
     if (state.peek().isIdentifier) {
-      final token = state.advance();
-      type = {
-        'CCR': OperandType.ccr,
-        'SR': OperandType.sr,
-        'USP': OperandType.usp,
-      }[token.lexeme];
-      type ??= {
-        'D': OperandType.dx,
-        'A': OperandType.ax,
-      }[token.lexeme[0]];
-      type ??= OperandType.immediate; // Lexeme is the name of a label.
+      final identifier = state.advance();
+      final operand = {
+        'CCR': CcrOperandStatement(location: location),
+        'SR': SrOperandStatement(location: location),
+        'USP': UspOperandStatement(location: location),
+      }[identifier.lexeme];
+      if (operand != null) {
+        return operand;
+      }
+
+      final register = parseRegister(identifier);
+      if (register?.isPc ?? false) {
+        throw ParserException('Unexpected identifier ${identifier.lexeme}.');
+      }
     }
 
     // #xxx
@@ -235,7 +272,12 @@ abstract class Parser {
         expected: 'a value',
         operandType: OperandType.immediate,
       );
-      type = OperandType.immediate;
+      final data = int.tryParse(token.lexeme);
+      if (data == null) {
+        throw ParserException(
+            'Immediate data was expected, but found ${token.lexeme}.');
+      }
+      return ImmediateOperandStatement(location: location, value: data);
     }
 
     // -(An)
@@ -246,13 +288,16 @@ abstract class Parser {
         expected: 'an opening parenthesis',
         operandType: OperandType.axIndWithPreDec,
       );
-      final name = state.expect(TokenType.identifier,
+      final identifier = state.expect(TokenType.identifier,
           expected: 'An for a predecrement -(An) operand');
+      final register = expectRegister<AxRegisterStatement>(identifier);
       expect(
         TokenType.rightParen,
         expected: 'a closing parenthesis',
         operandType: OperandType.axIndWithPreDec,
       );
+      return AxIndWithPreDecOperandStatement(
+          location: location, register: register);
     }
 
     expect(TokenType.leftParen, expected: 'an operand');
@@ -260,13 +305,17 @@ abstract class Parser {
     // (An) and (An)+
     if (state.peek().isIdentifier) {
       final identifier = state.advance();
+      final register = expectRegister<AxRegisterStatement>(identifier);
       expect(TokenType.rightParen,
-          'a closing parenthesis for an address register operand');
+          expected: 'a closing parenthesis for an address register operand');
       if (state.peek().isPlus) {
         state.advance();
-        type = OperandType.axIndWithPostInc;
+        return AxIndWithPostIncOperandStatement(
+          location: location,
+          register: register,
+        );
       } else {
-        type = OperandType.axInd;
+        return AxIndOperandStatement(location: location, register: register);
       }
     }
 
@@ -282,25 +331,67 @@ abstract class Parser {
             'Only word (W) or long word (L) sizes are permitted after (xxx).s '
             'operand.');
       }
-      type = {
-        Size.word: OperandType.absoluteWord,
-        Size.longWord: OperandType.absoluteLongWord,
+      return {
+        Size.word: AbsoluteWordOperandStatement(
+          location: location,
+          value: number.literal,
+        ),
+        Size.longWord: AbsoluteLongWordOperandStatement(
+          location: location,
+          value: number.literal,
+        ),
       }[size.size];
-      assert(type != null);
     }
 
     // One of (d, An), (d, An, Xn.s), (d, PC), (d, PC, Xn.s)
 
+    final displacement = number.literal;
     expect(TokenType.comma, expected: 'a comma after the displacement');
-    final identifier = expect(TokenType.identifier,
-        expected: 'either An or PC for a displaced operand');
-    final isPC = identifier.literal == 'PC';
+    final register = parseRegister(expect(TokenType.identifier,
+        expected: 'either An or PC for a displaced operand'));
+    if (register.isDx) {
+      throw ParserException('Data register cannot be displaced.');
+    }
 
-    return OperandStatement(
-      line: state.line,
-      operand: null,
-      type: null,
-    );
+    if (state.peek().isRightParen) {
+      state.advance();
+      return register.isPc
+          ? PcIndWithDisplacementOperandStatement(
+              location: location,
+              displacement: displacement,
+            )
+          : AxIndWithDisplacementOperandStatement(
+              location: location,
+              displacement: displacement,
+              register: register,
+            );
+    }
+
+    // One of (d, An, Xn.s), (d, PC, Xn.s)
+
+    final type =
+        register.isPc ? OperandType.pcIndWithIndex : OperandType.axIndWithIndex;
+    expect(TokenType.comma, expected: 'a comma', operandType: type);
+    final index = parseRegister(state.advance());
+    if (register.isPc) {
+      throw ParserException('Expected index register.');
+    }
+    expect(TokenType.dot, expected: 'a dot', operandType: type);
+    final size = parseSize(state);
+    return register.isPc
+        ? PcIndWithIndexOperandStatement(
+            location: location,
+            displacement: displacement,
+            index: index,
+            indexSize: size,
+          )
+        : AxIndWithIndexOperandStatement(
+            location: location,
+            register: register,
+            displacement: displacement,
+            index: index,
+            indexSize: size,
+          );
   }
 
   /// Makes sure that an operation configuration matches the given size and
@@ -394,7 +485,10 @@ class _LineParserState {
     try {
       callback();
     } on ParserException catch (error) {
-      errorCollector.add(Error(line: line, message: error.message));
+      errorCollector.add(Error(
+        location: peek().location,
+        message: error.message,
+      ));
     }
   }
 }
