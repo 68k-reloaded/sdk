@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:data_classes/data_classes.dart';
+import 'package:m68k_reloaded_compiler/src/compiler_integer_arithmetic.dart';
 import 'package:m68k_reloaded_compiler/src/compiler_logical.dart';
 import 'package:m68k_reloaded_parser/parser.dart';
 
@@ -10,6 +11,7 @@ import 'compiler_data_movement.dart';
 class Compiler {
   static final _operationCompilers = {
     ...dataMovementCompilers,
+    ...integerArithmeticCompilers,
     ...logicalCompilers,
   };
 

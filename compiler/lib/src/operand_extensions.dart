@@ -55,3 +55,19 @@ extension OperandTypeBits on OperandType {
       }[this]
           .bits;
 }
+
+extension ImmediateOperandBits on ImmediateOperand {
+  List<Bits> compiledValue(SizeValue size) {
+    if (size == SizeValue.byte) return [Bits.byte(0) + Bits.byte(value)];
+    if (size == SizeValue.word) return [Bits.word(value)];
+    if (size == SizeValue.longWord) {
+      return [
+        Bits.word(value >> Bits.wordLength),
+        Bits.word(value & ((1 << Bits.wordLength) - 1)),
+      ];
+    }
+
+    assert(false, 'Unknown size: $size');
+    return null;
+  }
+}
