@@ -2,13 +2,22 @@ part of 'statements.dart';
 
 enum Size { byte, word, longWord }
 
-String sizeToString(Size size) {
-  assert(size != null);
-  return {
-    Size.byte: 'byte',
-    Size.word: 'word',
-    Size.longWord: 'long word',
-  }[size];
+extension SizeToString on Size {
+  String toReadableString() {
+    return {
+      Size.byte: 'byte',
+      Size.word: 'word',
+      Size.longWord: 'long word',
+    }[this];
+  }
+
+  String toShortString() {
+    return {
+      Size.byte: 'B',
+      Size.word: 'W',
+      Size.longWord: 'L',
+    }[this];
+  }
 }
 
 const _sizesB = {Size.byte};
@@ -38,52 +47,52 @@ enum OperandType {
   usp,
 }
 
-String operandTypeToString(OperandType type) {
-  assert(type != null);
-  return {
-    OperandType.dx: 'data register mode',
-    OperandType.ax: 'address register mode',
-    OperandType.axInd: 'address register indirect mode',
-    OperandType.axIndWithPostInc:
-        'address register indirect with postincrement mode',
-    OperandType.axIndWithPreDec:
-        'address register indirect with predecrement mode',
-    OperandType.axIndWithDisplacement:
-        'address register indirect with displacement mode',
-    OperandType.axIndWithIndex: 'address register indirect with index mode',
-    OperandType.absoluteWord: 'absolute word addressing mode',
-    OperandType.absoluteLongWord: 'absolute long word addressing mode',
-    OperandType.pcIndWithDisplacement:
-        'program counter indirect with displacement mode',
-    OperandType.pcIndWithIndex: 'program counter indirect with index mode',
-    OperandType.immediate: 'immediate data mode',
-    OperandType.ccr: 'condition code register mode',
-    OperandType.sr: 'status register mode',
-    OperandType.address: 'address mode',
-    OperandType.usp: 'user stack pointer mode',
-  }[type];
-}
+extension OperandTypeToString on OperandType {
+  String toDescriptiveString() {
+    return {
+      OperandType.dx: 'data register mode',
+      OperandType.ax: 'address register mode',
+      OperandType.axInd: 'address register indirect mode',
+      OperandType.axIndWithPostInc:
+          'address register indirect with postincrement mode',
+      OperandType.axIndWithPreDec:
+          'address register indirect with predecrement mode',
+      OperandType.axIndWithDisplacement:
+          'address register indirect with displacement mode',
+      OperandType.axIndWithIndex: 'address register indirect with index mode',
+      OperandType.absoluteWord: 'absolute word addressing mode',
+      OperandType.absoluteLongWord: 'absolute long word addressing mode',
+      OperandType.pcIndWithDisplacement:
+          'program counter indirect with displacement mode',
+      OperandType.pcIndWithIndex: 'program counter indirect with index mode',
+      OperandType.immediate: 'immediate data mode',
+      OperandType.ccr: 'condition code register mode',
+      OperandType.sr: 'status register mode',
+      OperandType.address: 'address mode',
+      OperandType.usp: 'user stack pointer mode',
+    }[this];
+  }
 
-String operandTypeToStringShort(OperandType type) {
-  assert(type != null);
-  return {
-    OperandType.dx: 'Dn',
-    OperandType.ax: 'An',
-    OperandType.axInd: '(An)',
-    OperandType.axIndWithPostInc: '(An)+',
-    OperandType.axIndWithPreDec: '-(An)',
-    OperandType.axIndWithDisplacement: '(d, An)',
-    OperandType.axIndWithIndex: '(d, An, Xn.s)',
-    OperandType.absoluteWord: '(xxx).W',
-    OperandType.absoluteLongWord: '(xxx).L',
-    OperandType.pcIndWithDisplacement: '(d, PC)',
-    OperandType.pcIndWithIndex: '(d, PC, Xn.s)',
-    OperandType.immediate: '#xxx',
-    OperandType.ccr: 'CCR',
-    OperandType.sr: 'SR',
-    OperandType.address: 'address',
-    OperandType.usp: 'USP',
-  }[type];
+  String toShortString() {
+    return {
+      OperandType.dx: 'Dn',
+      OperandType.ax: 'An',
+      OperandType.axInd: '(An)',
+      OperandType.axIndWithPostInc: '(An)+',
+      OperandType.axIndWithPreDec: '-(An)',
+      OperandType.axIndWithDisplacement: '(d, An)',
+      OperandType.axIndWithIndex: '(d, An, Xn.s)',
+      OperandType.absoluteWord: '(xxx).W',
+      OperandType.absoluteLongWord: '(xxx).L',
+      OperandType.pcIndWithDisplacement: '(d, PC)',
+      OperandType.pcIndWithIndex: '(d, PC, Xn.s)',
+      OperandType.immediate: '#xxx',
+      OperandType.ccr: 'CCR',
+      OperandType.sr: 'SR',
+      OperandType.address: 'address',
+      OperandType.usp: 'USP',
+    }[this];
+  }
 }
 
 // All means without CCR and SR
@@ -193,6 +202,8 @@ class Operation {
     this.configurations,
   })  : assert(code != null),
         assert(configurations != null);
+
+  String toString() => code;
 
   static KtList<String> conditionCodes = KtList.from([
     ...['T', 'F', 'HI', 'LS', 'HS', 'CC', 'LO', 'CS', 'NE', 'EQ'],
@@ -937,4 +948,9 @@ class OperationConfiguration {
     this.operandTypes = const [],
   })  : assert(sizes != null),
         assert(operandTypes != null);
+
+  String toString() {
+    return 'OperationConfiguration with sizes ${sizes.toReadableString()} '
+        'and operand types ${operandTypes.toReadableString()}';
+  }
 }

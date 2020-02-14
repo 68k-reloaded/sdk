@@ -2,6 +2,7 @@ import 'package:data_classes/data_classes.dart';
 import 'package:kt_dart/kt.dart';
 
 import '../location.dart';
+import '../utils.dart';
 
 part 'operation.dart';
 
@@ -18,6 +19,8 @@ abstract class Statement {
   Statement({@required this.location}) : assert(location != null);
 
   final Location location;
+
+  String toAlignedString() => toString();
 }
 
 class LabelStatement extends Statement {
@@ -58,7 +61,11 @@ class OperationStatement extends Statement {
         assert(operands != null),
         super(location: location);
 
-  String toString() => '$operation.$size $operands';
+  String toString() => '$operation.${size.toShortString()} '
+      '${operands.join(', ')}';
+  String toAlignedString() =>
+      '${'${operation.toString()}.${size.toShortString()}'.padRight(8)} '
+      '${operands.join(', ')}';
 }
 
 class SizeStatement extends Statement {
@@ -68,7 +75,8 @@ class SizeStatement extends Statement {
 
   final Size size;
 
-  String toString() => '$size';
+  String toString() => size.toReadableString();
+  String toShortString() => size.toShortString();
 }
 
 abstract class RegisterStatement extends Statement {
@@ -175,6 +183,8 @@ class DxOperandStatement extends OperandStatement {
         super(location: location);
 
   final DxRegisterStatement register;
+
+  String toString() => register.toString();
 }
 
 class AxOperandStatement extends OperandStatement {
@@ -183,6 +193,8 @@ class AxOperandStatement extends OperandStatement {
         super(location: location);
 
   final AxRegisterStatement register;
+
+  String toString() => register.toString();
 }
 
 class AxIndOperandStatement extends OperandStatement {
@@ -191,6 +203,8 @@ class AxIndOperandStatement extends OperandStatement {
         super(location: location);
 
   final AxRegisterStatement register;
+
+  String toString() => register.toString();
 }
 
 class AxIndWithPostIncOperandStatement extends OperandStatement {
@@ -201,6 +215,8 @@ class AxIndWithPostIncOperandStatement extends OperandStatement {
         super(location: location);
 
   final AxRegisterStatement register;
+
+  String toString() => '($register)+';
 }
 
 class AxIndWithPreDecOperandStatement extends OperandStatement {
@@ -211,6 +227,8 @@ class AxIndWithPreDecOperandStatement extends OperandStatement {
         super(location: location);
 
   final AxRegisterStatement register;
+
+  String toString() => '-($register)';
 }
 
 class AxIndWithDisplacementOperandStatement extends OperandStatement {
@@ -224,6 +242,8 @@ class AxIndWithDisplacementOperandStatement extends OperandStatement {
 
   final AxRegisterStatement register;
   final int displacement;
+
+  String toString() => '($displacement, $register)';
 }
 
 class AxIndWithIndexOperandStatement extends OperandStatement {
@@ -243,6 +263,8 @@ class AxIndWithIndexOperandStatement extends OperandStatement {
   final int displacement;
   final IndexedRegisterStatement index;
   final SizeStatement indexSize;
+
+  String toString() => '($displacement, $register, $index$indexSize)';
 }
 
 class AbsoluteWordOperandStatement extends OperandStatement {
@@ -252,6 +274,8 @@ class AbsoluteWordOperandStatement extends OperandStatement {
         super(location: location);
 
   final int value;
+
+  String toString() => '($value).W';
 }
 
 class AbsoluteLongWordOperandStatement extends OperandStatement {
@@ -261,6 +285,8 @@ class AbsoluteLongWordOperandStatement extends OperandStatement {
         super(location: location);
 
   final int value;
+
+  String toString() => '($value).L';
 }
 
 class PcIndWithDisplacementOperandStatement extends OperandStatement {
@@ -271,6 +297,8 @@ class PcIndWithDisplacementOperandStatement extends OperandStatement {
         super(location: location);
 
   final int displacement;
+
+  String toString() => '($displacement, PC)';
 }
 
 class PcIndWithIndexOperandStatement extends OperandStatement {
@@ -287,6 +315,8 @@ class PcIndWithIndexOperandStatement extends OperandStatement {
   final int displacement;
   final IndexedRegisterStatement index;
   final SizeStatement indexSize;
+
+  String toString() => '($displacement, PC, $index$indexSize)';
 }
 
 class ImmediateOperandStatement extends OperandStatement {
@@ -295,23 +325,33 @@ class ImmediateOperandStatement extends OperandStatement {
         super(location: location);
 
   final int value;
+
+  String toString() => '#$value';
 }
 
 class CcrOperandStatement extends OperandStatement {
   CcrOperandStatement({@required Location location})
       : super(location: location);
+
+  String toString() => 'CCR';
 }
 
 class SrOperandStatement extends OperandStatement {
   SrOperandStatement({@required Location location}) : super(location: location);
+
+  String toString() => 'SR';
 }
 
 class AddressOperandStatement extends OperandStatement {
   AddressOperandStatement({@required Location location})
       : super(location: location);
+
+  String toString() => '[address operand]';
 }
 
 class UspOperandStatement extends OperandStatement {
   UspOperandStatement({@required Location location})
       : super(location: location);
+
+  String toString() => 'USP';
 }

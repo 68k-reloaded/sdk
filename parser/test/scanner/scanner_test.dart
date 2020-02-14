@@ -36,10 +36,7 @@ void main() {
           source: source,
           errorCollector: errorCollector,
         ),
-        equals([
-          ...expected,
-          createToken(TokenType.eof, '', location: eofLocation),
-        ]),
+        equals(expected),
       );
       expect(errorCollector.errors.asList(), isEmpty);
     }
@@ -253,7 +250,8 @@ void main() {
           createToken(TokenType.identifier, 'A1', literal: 'A1', col: 20),
           createToken(TokenType.rightParen, ')', col: 22),
           createToken(TokenType.minus, '-', col: 23),
-          createToken(TokenType.comment, '* comment', literal: ' comment', col: 25),
+          createToken(TokenType.comment, '* comment',
+              literal: ' comment', col: 25),
         ],
       }.forEach((raw, expected) {
         test('"$raw"', () {

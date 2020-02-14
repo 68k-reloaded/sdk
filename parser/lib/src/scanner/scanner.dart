@@ -33,7 +33,6 @@ class Scanner {
       _scanNextToken(state: state, errorCollector: errorCollector);
     }
 
-    state.addToken(TokenType.eof);
     return state.tokens;
   }
 

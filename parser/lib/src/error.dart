@@ -10,6 +10,8 @@ class Error {
   Error({@required this.location, @required this.message})
       : assert(location != null),
         assert(message != null);
+
+  String toString() => 'Error at $location: $message';
 }
 
 class ErrorCollector {
@@ -21,16 +23,7 @@ class ErrorCollector {
 
   void add(Error error) {
     assert(error != null);
+    print('Error $error');
     _errors.add(error);
-  }
-}
-
-String iterableToString(Iterable<Object> items) {
-  if (items.isEmpty) {
-    return '';
-  } else if (items.length == 1) {
-    return items.single.toString();
-  } else {
-    return '${items.take(items.length - 1).join(', ')} and ${items.last}';
   }
 }

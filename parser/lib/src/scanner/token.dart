@@ -19,8 +19,6 @@ enum TokenType {
   identifier,
   string,
   number,
-
-  eof
 }
 
 class Token {
@@ -41,15 +39,13 @@ class Token {
   bool get isIdentifier => type == TokenType.identifier;
   bool get isString => type == TokenType.string;
   bool get isNumber => type == TokenType.number;
-  bool get isEof => type == TokenType.eof;
 
-  Token({
+  const Token({
     @required this.type,
     @required this.location,
     this.lexeme,
     this.literal,
-  })  : assert(type != null),
-        assert(location != null);
+  }) : assert(location != null);
 
   String toString() {
     return '${type.toString().substring('TokenType.'.length)} at $location: "$lexeme" (Literal: $literal)';
@@ -62,4 +58,12 @@ class Token {
       lexeme == other.lexeme &&
       literal == other.literal;
   int get hashCode => hashList([type, location, lexeme, literal]);
+}
+
+class NullToken extends Token {
+  const NullToken()
+      : super(
+          type: null, // We match no type.
+          location: const Location.invalid(),
+        );
 }
