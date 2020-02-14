@@ -197,11 +197,8 @@ class Operation {
   final String code;
   final Set<OperationConfiguration> configurations;
 
-  const Operation({
-    this.code,
-    this.configurations,
-  })  : assert(code != null),
-        assert(configurations != null);
+  const Operation({@required this.code, this.configurations})
+      : assert(code != null);
 
   String toString() => code;
 
