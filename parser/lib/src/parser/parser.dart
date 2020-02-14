@@ -542,7 +542,7 @@ class _LineParserState {
       return true;
     } on ParserException catch (error) {
       errorCollector.add(Error(
-        location: peek()?.location ?? Location.invalid(),
+        location: peek()?.location ?? Location.invalid,
         message: error.message,
       ));
       return false;

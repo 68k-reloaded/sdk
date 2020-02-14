@@ -1,3 +1,5 @@
+import 'package:kt_dart/kt.dart';
+
 import 'src/error.dart';
 import 'src/parser/parser.dart';
 import 'src/scanner/scanner.dart';
