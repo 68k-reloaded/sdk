@@ -128,7 +128,7 @@ class OperationType {
   static const moveq = OperationType('MOVEQ');
 
   // Integer Arithmetic
-  // TODO: MULS, MULU, NEG, NEGX, SUB, SUBA, SUBI, SUBQ, SUBX
+  // TODO: MULS, MULU, NEG, NEGX, SUB, SUBA, SUBI, SUBX
   static const integerArithmetic = <OperationType>[
     ...[add, adda, addi, addq, addx],
     clr,
@@ -149,6 +149,7 @@ class OperationType {
   static const divs = OperationType('DIVS');
   static const divu = OperationType('DIVU');
   static const ext = OperationType('EXT');
+  static const subq = OperationType('SUBQ');
 
   // Logical
   // TODO: OR, ORI

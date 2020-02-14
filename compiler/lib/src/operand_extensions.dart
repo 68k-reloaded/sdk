@@ -70,4 +70,14 @@ extension ImmediateOperandBits on ImmediateOperand {
     assert(false, 'Unknown size: $size');
     return null;
   }
+
+  static const quickMin = 1;
+  static const quickMax = 8;
+  static const quickBits = 3;
+  Bits get compiledQuick {
+    assert(quickMin <= value);
+    assert(value <= quickMax);
+
+    return Bits.fromInt(quickBits, value == quickMax ? 0 : value);
+  }
 }

@@ -9,6 +9,7 @@ import 'operand_extensions.dart';
 final integerArithmeticCompilers = {
   OperationType.add: _compileAdd,
   OperationType.cmpi: _compileCmpi,
+  OperationType.subq: _compileSubq,
 };
 
 final _addBits = [1, 1, 0, 1].bits;
@@ -63,4 +64,28 @@ CompiledStatement _compileCmpi(Operation statement) {
     immediateOrSourceExtensions:
         (data as ImmediateOperand).compiledValue(statement.size.value),
   );
+}
+
+final _subqBits = [0, 1, 0, 1].bits;
+CompiledStatement _compileSubq(Operation statement) {
+  assert(statement.type == OperationType.subq);
+  assert(statement.operands.length == 2);
+
+  final data = statement.operands.first as ImmediateOperand;
+
+  final destination = statement.operands.second;
+  assert(operandTypesNoPcImm.contains(destination.type));
+  if (destination.type == OperandType.ax)
+    assert(statement.size.value != SizeValue.byte);
+
+  final dataBits = data.compiledQuick;
+  final sizeBits = statement.compiledSizeZeroBased;
+  final destModeBits = destination.compiledMode;
+  final destRegisterBits = destination.compiledRegister;
+  return CompiledStatement(_subqBits +
+      dataBits +
+      [1].bits +
+      sizeBits +
+      destModeBits +
+      destRegisterBits);
 }

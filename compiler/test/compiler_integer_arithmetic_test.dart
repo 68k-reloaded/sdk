@@ -76,5 +76,36 @@ void main() {
         test(name, () => stmt.test());
       });
     });
+
+    group('SUBQ:', () {
+      <String, StatementWithExpectedResult>{
+        'SUBQ.W #1, D0': StatementWithExpectedResult(
+          type: OperationType.subq,
+          size: SizeValue.word,
+          operands: [immediate(1), dx(0)],
+          expectedResult: CompiledStatement(
+            [0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0].bits,
+          ),
+        ),
+        'SUBQ.B #8, D2': StatementWithExpectedResult(
+          type: OperationType.subq,
+          size: SizeValue.byte,
+          operands: [immediate(8), dx(2)],
+          expectedResult: CompiledStatement(
+            [0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0].bits,
+          ),
+        ),
+        'SUBQ.L #4, (A1)+': StatementWithExpectedResult(
+          type: OperationType.subq,
+          size: SizeValue.longWord,
+          operands: [immediate(4), axIndWithPostInc(2)],
+          expectedResult: CompiledStatement(
+            [0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1].bits,
+          ),
+        ),
+      }.forEach((name, stmt) {
+        test(name, () => stmt.test());
+      });
+    });
   });
 }

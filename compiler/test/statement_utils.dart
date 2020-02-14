@@ -57,6 +57,16 @@ AxIndOperand axInd(int index) {
   );
 }
 
+AxIndWithPostIncOperand axIndWithPostInc(int index) {
+  return AxIndWithPostIncOperand(
+    location: Location.invalid,
+    register: AxRegister(
+      location: Location.invalid,
+      index: index,
+    ),
+  );
+}
+
 AxIndWithPreDecOperand axIndWithPreDec(int index) {
   return AxIndWithPreDecOperand(
     location: Location.invalid,
