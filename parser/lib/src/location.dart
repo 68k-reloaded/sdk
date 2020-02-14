@@ -10,6 +10,8 @@ class Location {
       : assert(line != null),
         assert(col != null);
 
+  static const invalid = Location(line: -1, col: -1);
+
   @override
   String toString() => '$line:$col';
 

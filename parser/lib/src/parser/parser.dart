@@ -1,6 +1,7 @@
 import 'dart:core';
 
 import 'package:collection/collection.dart';
+import 'package:kt_dart/kt.dart';
 import 'package:meta/meta.dart';
 
 import '../error.dart';
@@ -93,7 +94,7 @@ abstract class Parser {
       ));
     }
 
-    return Program(labelsToIndex: labels, statements: statements);
+    return Program(labelsToIndex: labels, statements: statements.kt);
   }
 
   static void parseLine(_LineParserState state) {

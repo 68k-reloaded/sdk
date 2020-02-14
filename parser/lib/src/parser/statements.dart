@@ -7,7 +7,7 @@ part 'operation.dart';
 
 class Program {
   final Map<LabelStatement, int> labelsToIndex;
-  final List<Statement> statements;
+  final KtList<Statement> statements;
 
   Program({@required this.labelsToIndex, @required this.statements})
       : assert(labelsToIndex != null),
@@ -74,15 +74,16 @@ class SizeStatement extends Statement {
 abstract class RegisterStatement extends Statement {
   RegisterStatement({@required Location location}) : super(location: location);
 
-  bool get isPc => this is PcRegisterStatement;
-  bool get isAx => this is AxRegisterStatement;
-  bool get isDx => this is DxRegisterStatement;
+  bool get isPc => false;
+  bool get isAx => false;
+  bool get isDx => false;
 }
 
 class PcRegisterStatement extends RegisterStatement {
   PcRegisterStatement({@required Location location})
       : super(location: location);
 
+  bool get isPc => true;
   String toString() => 'PC';
 }
 
@@ -93,7 +94,7 @@ abstract class IndexedRegisterStatement extends RegisterStatement {
         assert(index < 8),
         super(location: location);
 
-  final index;
+  final int index;
 
   String toString() => 'X$index';
 }
@@ -102,6 +103,7 @@ class AxRegisterStatement extends IndexedRegisterStatement {
   AxRegisterStatement({@required Location location, @required int index})
       : super(location: location, index: index);
 
+  bool get isAx => true;
   String toString() => 'A$index';
 }
 
@@ -109,64 +111,14 @@ class DxRegisterStatement extends IndexedRegisterStatement {
   DxRegisterStatement({@required Location location, @required int index})
       : super(location: location, index: index);
 
+  bool get isDx => true;
   String toString() => 'D$index';
 }
 
-class OperandStatement extends Statement {
+abstract class OperandStatement extends Statement {
   OperandStatement({@required Location location}) : super(location: location);
 
-  OperandType get type {
-    if (this is DxOperandStatement) {
-      return OperandType.dx;
-    }
-    if (this is AxOperandStatement) {
-      return OperandType.ax;
-    }
-    if (this is AxIndOperandStatement) {
-      return OperandType.axInd;
-    }
-    if (this is AxIndWithPostIncOperandStatement) {
-      return OperandType.axIndWithPostInc;
-    }
-    if (this is AxIndWithPreDecOperandStatement) {
-      return OperandType.axIndWithPreDec;
-    }
-    if (this is AxIndWithDisplacementOperandStatement) {
-      return OperandType.axIndWithDisplacement;
-    }
-    if (this is AxIndWithIndexOperandStatement) {
-      return OperandType.axIndWithIndex;
-    }
-    if (this is AbsoluteWordOperandStatement) {
-      return OperandType.absoluteWord;
-    }
-    if (this is AbsoluteLongWordOperandStatement) {
-      return OperandType.absoluteLongWord;
-    }
-    if (this is PcIndWithDisplacementOperandStatement) {
-      return OperandType.pcIndWithDisplacement;
-    }
-    if (this is PcIndWithIndexOperandStatement) {
-      return OperandType.pcIndWithIndex;
-    }
-    if (this is ImmediateOperandStatement) {
-      return OperandType.immediate;
-    }
-    if (this is CcrOperandStatement) {
-      return OperandType.ccr;
-    }
-    if (this is SrOperandStatement) {
-      return OperandType.sr;
-    }
-    if (this is AddressOperandStatement) {
-      return OperandType.address;
-    }
-    if (this is UspOperandStatement) {
-      return OperandType.usp;
-    }
-    assert(false, 'Unhandled type $type');
-    return null;
-  }
+  OperandType get type;
 }
 
 class DxOperandStatement extends OperandStatement {
@@ -174,6 +126,8 @@ class DxOperandStatement extends OperandStatement {
       : assert(register != null),
         super(location: location);
 
+  @override
+  OperandType get type => OperandType.dx;
   final DxRegisterStatement register;
 }
 
@@ -182,6 +136,8 @@ class AxOperandStatement extends OperandStatement {
       : assert(register != null),
         super(location: location);
 
+  @override
+  OperandType get type => OperandType.ax;
   final AxRegisterStatement register;
 }
 
@@ -190,6 +146,8 @@ class AxIndOperandStatement extends OperandStatement {
       : assert(register != null),
         super(location: location);
 
+  @override
+  OperandType get type => OperandType.axInd;
   final AxRegisterStatement register;
 }
 
@@ -200,6 +158,8 @@ class AxIndWithPostIncOperandStatement extends OperandStatement {
   })  : assert(register != null),
         super(location: location);
 
+  @override
+  OperandType get type => OperandType.axIndWithPostInc;
   final AxRegisterStatement register;
 }
 
@@ -210,6 +170,8 @@ class AxIndWithPreDecOperandStatement extends OperandStatement {
   })  : assert(register != null),
         super(location: location);
 
+  @override
+  OperandType get type => OperandType.axIndWithPreDec;
   final AxRegisterStatement register;
 }
 
@@ -222,6 +184,8 @@ class AxIndWithDisplacementOperandStatement extends OperandStatement {
         assert(displacement != null),
         super(location: location);
 
+  @override
+  OperandType get type => OperandType.axIndWithDisplacement;
   final AxRegisterStatement register;
   final int displacement;
 }
@@ -239,6 +203,8 @@ class AxIndWithIndexOperandStatement extends OperandStatement {
         assert(indexSize != null),
         super(location: location);
 
+  @override
+  OperandType get type => OperandType.axIndWithIndex;
   final AxRegisterStatement register;
   final int displacement;
   final IndexedRegisterStatement index;
@@ -251,6 +217,8 @@ class AbsoluteWordOperandStatement extends OperandStatement {
       : assert(value != null),
         super(location: location);
 
+  @override
+  OperandType get type => OperandType.absoluteWord;
   final int value;
 }
 
@@ -260,6 +228,8 @@ class AbsoluteLongWordOperandStatement extends OperandStatement {
       : assert(value != null),
         super(location: location);
 
+  @override
+  OperandType get type => OperandType.absoluteLongWord;
   final int value;
 }
 
@@ -270,6 +240,8 @@ class PcIndWithDisplacementOperandStatement extends OperandStatement {
   })  : assert(displacement != null),
         super(location: location);
 
+  @override
+  OperandType get type => OperandType.pcIndWithDisplacement;
   final int displacement;
 }
 
@@ -284,6 +256,8 @@ class PcIndWithIndexOperandStatement extends OperandStatement {
         assert(indexSize != null),
         super(location: location);
 
+  @override
+  OperandType get type => OperandType.pcIndWithIndex;
   final int displacement;
   final IndexedRegisterStatement index;
   final SizeStatement indexSize;
@@ -294,24 +268,38 @@ class ImmediateOperandStatement extends OperandStatement {
       : assert(value != null),
         super(location: location);
 
+  @override
+  OperandType get type => OperandType.immediate;
   final int value;
 }
 
 class CcrOperandStatement extends OperandStatement {
   CcrOperandStatement({@required Location location})
       : super(location: location);
+
+  @override
+  OperandType get type => OperandType.ccr;
 }
 
 class SrOperandStatement extends OperandStatement {
   SrOperandStatement({@required Location location}) : super(location: location);
+
+  @override
+  OperandType get type => OperandType.sr;
 }
 
 class AddressOperandStatement extends OperandStatement {
   AddressOperandStatement({@required Location location})
       : super(location: location);
+
+  @override
+  OperandType get type => OperandType.address;
 }
 
 class UspOperandStatement extends OperandStatement {
   UspOperandStatement({@required Location location})
       : super(location: location);
+
+  @override
+  OperandType get type => OperandType.usp;
 }
