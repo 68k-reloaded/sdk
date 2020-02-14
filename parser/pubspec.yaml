@@ -7,7 +7,7 @@ authors:
 homepage: https://github.com/m68k-reloaded/sdk/tree/master/parser
 
 environment:
-  sdk: ">=2.6.0 <3.0.0"
+  sdk: ">=2.7.0 <3.0.0"
 
 dependencies:
   data_classes: ^2.0.3

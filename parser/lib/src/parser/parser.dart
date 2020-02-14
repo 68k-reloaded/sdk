@@ -5,7 +5,9 @@ import 'package:kt_dart/kt.dart';
 import 'package:meta/meta.dart';
 
 import '../error.dart';
+import '../location.dart';
 import '../scanner/scanner.dart';
+import '../utils.dart';
 import 'statements.dart';
 
 export 'statements.dart';
@@ -41,7 +43,7 @@ abstract class Parser {
 
     tokensByLine.forEach((line, tokens) {
       // Global label line.
-      if (tokens.first.isIdentifier && tokens[1].isColon) {
+      if (tokens.firstOrNullToken.isIdentifier && tokens.secondOrNull.isColon) {
         labelsWaitingForCode.add(LabelStatement(
           location: tokens.first.location,
           name: tokens.first.literal,
@@ -50,39 +52,52 @@ abstract class Parser {
       }
 
       // Local label line.
-      if (tokens.first.isDot && tokens[1].isIdentifier && tokens[2].isColon) {
+      if (tokens.firstOrNullToken.isDot &&
+          tokens.secondOrNullToken.isIdentifier &&
+          tokens.thirdOrNullToken.isColon) {
         labelsWaitingForCode.add(LabelStatement(
           location: tokens.first.location,
-          name: '.${tokens[1].literal}',
+          name: '.${tokens.first.literal}',
         ));
         tokens.removeRange(0, 3);
       }
 
-      // Comment at the end of the line.
+      // Pre-parse comments at the end of the line so that the only thing left
+      // is a single operation or directive.
       Token comment;
-      if (tokens.last.isComment) {
+      if (tokens.lastOrNullToken.isComment) {
         comment = tokens.last;
         tokens.removeLast();
       }
 
-      if (tokens.isEmpty) {
-        if (comment != null) {
-          statements.add(CommentStatement(
-            location: comment.location,
-            comment: comment.literal,
-          ));
-        }
-      }
-
       // This is an operation or a directive. Let the labels point to the next
       // statement, which will be inserted at the end of the list.
-      labels.addAll({
-        for (final label in labelsWaitingForCode) label: statements.length,
-      });
-      final state = _LineParserState(tokens, errorCollector, line);
-      state.tryOrRegisterError(() {
-        statements.add(parseOperationOrDirective(state));
-      });
+      if (tokens.isNotEmpty) {
+        final state = _LineParserState(tokens, errorCollector, line);
+        state.tryOrCollectError(() {
+          final statement = parseOperationOrDirective(state);
+
+          if (statement != null) {
+            // A new statement got parsed. Labels that came before should point
+            // to this statement.
+            statements.add(statement);
+            labels.addAll({
+              for (final label in labelsWaitingForCode)
+                label: statements.length,
+            });
+            labelsWaitingForCode.clear();
+          }
+        });
+      }
+
+      // If there was a comment after the optional statement, now is the time
+      // to save it!
+      if (comment != null) {
+        statements.add(CommentStatement(
+          location: comment.location,
+          comment: (comment.literal as String).trim(),
+        ));
+      }
     });
 
     // Once we parsed the file, there should be no labels waiting for code.
@@ -100,11 +115,10 @@ abstract class Parser {
   static void parseLine(_LineParserState state) {
     // A line can contain some labels as well as an operation or directive.
     final labels = <LabelStatement>{};
-    Statement operationOrDirective;
 
     // Parse labels.
     while (state.peek2().isColon || state.peek3().isColon) {
-      state.tryOrRegisterError(() {
+      state.tryOrCollectError(() {
         labels.add(parseLabel(state));
       });
     }
@@ -126,7 +140,7 @@ abstract class Parser {
     }
 
     final identifier =
-        state.expect(TokenType.identifier, expected: "a label identifier");
+        state.expect(TokenType.identifier, expected: 'a label identifier');
     assert(state.advance().isColon);
 
     return LabelStatement(
@@ -137,33 +151,36 @@ abstract class Parser {
 
   static Statement parseOperationOrDirective(_LineParserState state) {
     final identifier = state.expect(TokenType.identifier,
-        expected: "an operation or directive identifier");
+        expected: 'an operation or directive identifier');
 
     SizeStatement size;
     if (state.peek().isDot) {
       state.advance();
-      state.tryOrRegisterError(() {
-        size = parseSize(state);
-      });
+      state.tryOrCollectError(() => size = parseSize(state));
     }
 
     final operands = <OperandStatement>[];
-    while (state.peek()?.isComment == false) {
-      state.tryOrRegisterError(() {
+    while (true) {
+      state.tryOrCollectError(() {
         operands.add(parseOperand(state));
       });
+      final isNextComma = state.peek()?.isComma ?? false;
+      if (!isNextComma) break;
+      state.expect(TokenType.comma,
+          expected: 'a comma indicating more operands are coming');
     }
 
     // Now, we got the [identifier] of the operation as well as its [size] and
     // [operands]. It's time to see if there actually exists an operation or
     // directive which matches that signature!
 
+    final code = (identifier.literal as String).toUpperCase();
     var operation = Operation.values.firstOrNull(
-      (operation) => operation.code == identifier.literal,
+      (operation) => operation.code == code,
     );
 
     if (operation != null) {
-      state.tryOrRegisterError(() {
+      state.tryOrCollectError(() {
         ensureMatchingOperationConfigurationExists(
           operation,
           size.size,
@@ -182,6 +199,16 @@ abstract class Parser {
     // No matching operation was found. Maybe this is a directive?
 
     //return DirectiveStatement();
+
+    state.errorCollector.add(Error(
+      location: identifier.location,
+      message: 'Unknown operation ${identifier.literal}.',
+    ));
+
+    // Although the operation is unknown, we still continue parsing the rest of
+    // the program so that we can report all errors at once. So we just return
+    // null here, causing this statement to simple be omitted in the resulting
+    // statement list.
     return null;
   }
 
@@ -207,22 +234,27 @@ abstract class Parser {
     Token expect(TokenType type, {OperandType operandType, String expected}) {
       final expectedMessage = StringBuffer(expected);
       if (operandType != null) {
-        expectedMessage.write(' for an ${operandTypeToStringShort(operandType)}'
-            'operand (\'${operandTypeToString(operandType)}\')');
+        expectedMessage.write(" for an ${operandType.toShortString()}"
+            "operand ('${operandType.toDescriptiveString()}')");
       }
       return state.expect(type, expected: expectedMessage.toString());
     }
 
     RegisterStatement parseRegister(Token token) {
-      final token = state.advance();
       final lexeme = token.lexeme;
-      if (!token.isIdentifier ||
-          !lexeme.startsWith('A') && !lexeme.startsWith('D')) {
-        throw ParserException('Expected register, but found ${token.lexeme}.');
+      if (!token.isIdentifier) {
+        throw ParserException('Expected register, but found $lexeme.');
       }
       if (lexeme == 'PC') {
         return PcRegisterStatement(location: token.location);
       }
+      if (lexeme == 'SP') {
+        return AxRegisterStatement(location: token.location, index: 7);
+      }
+      if (!lexeme.startsWith('A') && !lexeme.startsWith('D')) {
+        throw ParserException('Expected register, but found $lexeme.');
+      }
+
       final index = int.tryParse(lexeme.substring(1));
       if (index == null) {
         throw ParserException(
@@ -231,6 +263,7 @@ abstract class Parser {
       if (lexeme.startsWith('A')) {
         return AxRegisterStatement(location: token.location, index: index);
       } else {
+        assert(lexeme.startsWith('D'));
         return DxRegisterStatement(location: token.location, index: index);
       }
     }
@@ -263,6 +296,12 @@ abstract class Parser {
       if (register?.isPc ?? false) {
         throw ParserException('Unexpected identifier ${identifier.lexeme}.');
       }
+      if (register.isAx) {
+        return AxOperandStatement(location: location, register: register);
+      }
+      if (register.isDx) {
+        return DxOperandStatement(location: location, register: register);
+      }
     }
 
     // #xxx
@@ -290,7 +329,7 @@ abstract class Parser {
         operandType: OperandType.axIndWithPreDec,
       );
       final identifier = state.expect(TokenType.identifier,
-          expected: 'An for a predecrement -(An) operand');
+          expected: 'An or SP for a predecrement -(An) or -(SP) operand');
       final register = expectRegister<AxRegisterStatement>(identifier);
       expect(
         TokenType.rightParen,
@@ -402,45 +441,57 @@ abstract class Parser {
     Size size,
     List<OperandStatement> operands,
   ) {
-    final sizeMatchingConfigs = operation.configurations.where((operation) {
+    // The operation needs to support the given [size].
+    Iterable<OperationConfiguration> matchingConfigs =
+        operation.configurations.where((operation) {
       return operation.sizes.contains(size);
-    });
+    }).toList();
 
-    if (sizeMatchingConfigs.isEmpty) {
+    if (matchingConfigs.isEmpty) {
       final supportedSizes = operation.configurations
           .map((op) => op.sizes)
           .reduce((a, b) => a.union(b))
-          .map(sizeToString);
-      throw ParserException(
-          "The operation ${operation.code} only supports the sizes "
-          "${iterableToString(supportedSizes)}, but you tried to use it "
-          "with the size ${sizeToString(size)}. That doesn't work.");
+          .map((size) => size.toReadableString());
+      throw ParserException("The operation $operation only supports the sizes "
+          "${supportedSizes.toReadableString()}, but you tried to use it "
+          "with the size ${size.toReadableString()}. That doesn't work.");
     }
 
-    final matchingConfigs = sizeMatchingConfigs.where((configuration) {
+    // The number of arguments has to match.
+    matchingConfigs = matchingConfigs.where((config) {
+      return config.operandTypes.length == operands.length;
+    });
+
+    if (matchingConfigs.isEmpty) {
+      throw ParserException("The operation $operation does not support "
+          "invocation with ${operands.length} operands.");
+    }
+
+    // The type of the operands has to match.
+    matchingConfigs = matchingConfigs.where((configuration) {
       return IterableZip([configuration.operandTypes, operands])
           .every((operands) {
         final fittingTypes = operands.first as Set<OperandType>;
         final actualType = (operands.last as OperandStatement).type;
         return fittingTypes.contains(actualType);
       });
-    });
+    }).toList();
 
     if (matchingConfigs.isEmpty) {
       final buffer = StringBuffer()
         ..write("You provided operands of the types ")
-        ..write(iterableToString(
-          operands.map((operand) => operandTypeToString(operand.type)),
-        ))
-        ..write(". But the ${operation.code} operation on size "
-            "${sizeToString(size)} doesn't accept operands of these "
-            "types. Here are all the combinations that are accepted:\n")
-        ..writeAll([
-          for (final config in sizeMatchingConfigs)
-            '- ${iterableToString(config.sizes)}'
-        ]);
+        ..write(operands
+            .map((operand) => operand.type.toDescriptiveString())
+            .toReadableString())
+        ..write(". But the $operation operation on size "
+            "${size.toReadableString()} doesn't accept operands of these "
+            "types.");
       throw ParserException(buffer.toString());
     }
+
+    // print('Here are all matching configurations for $operation with size '
+    //     '${size.toReadableString()} and operand ${operands.toReadableString()}.');
+    // matchingConfigs.forEach(print);
 
     assert(matchingConfigs.length == 1);
   }
@@ -460,11 +511,12 @@ class _LineParserState {
   int current = 0;
 
   bool get isAtEnd => current >= tokens.length;
+  bool get isNotAtEnd => !isAtEnd;
   Token peek() => isAtEnd ? null : tokens[current];
   Token peek2() => current + 1 >= tokens.length ? null : tokens[current + 1];
   Token peek3() => current + 2 >= tokens.length ? null : tokens[current + 2];
 
-  Token advance() => tokens[current++];
+  Token advance() => isNotAtEnd ? tokens[current++] : const NullToken();
   List<Token> advanceWhile(bool Function(Token token) predicate) {
     while (predicate(peek()) && !isAtEnd) {
       advance();
@@ -475,21 +527,25 @@ class _LineParserState {
   /// Advances the cursor if the type matches the expected [type]. Otherwise
   /// throws a [ParserException] describing what was [expected].
   Token expect(TokenType type, {@required String expected}) {
-    if (peek().type != type) {
+    if (peek()?.type != type) {
       throw ParserException("Expected $expected, but found "
-          "'${peek().lexeme}' instead.");
+          "'${peek()?.lexeme ?? 'nothing'}' instead.");
     }
     return advance();
   }
 
-  void tryOrRegisterError(void Function() callback) {
+  // Calls the given [callback]. Returns true if it runs successfully.
+  // If it throws an error, collects it and returns false.
+  bool tryOrCollectError(void Function() callback) {
     try {
       callback();
+      return true;
     } on ParserException catch (error) {
       errorCollector.add(Error(
-        location: peek().location,
+        location: peek()?.location ?? Location.invalid(),
         message: error.message,
       ));
+      return false;
     }
   }
 }
