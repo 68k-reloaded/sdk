@@ -14,22 +14,22 @@ extension DirectionDnEaBits on DirectionDnEa {
       }[this];
 }
 
-extension SizeBits on Size {
+extension SizeValueBits on SizeValue {
   Bits get compiledZeroBased => {
-        Size.byte: [0, 0].bits,
-        Size.word: [0, 1].bits,
-        Size.longWord: [1, 0].bits,
+        SizeValue.byte: [0, 0].bits,
+        SizeValue.word: [0, 1].bits,
+        SizeValue.longWord: [1, 0].bits,
       }[this];
   Bits get compiledOneBased => {
-        Size.byte: [0, 1].bits,
-        Size.word: [1, 0].bits,
-        Size.longWord: [1, 1].bits,
+        SizeValue.byte: [0, 1].bits,
+        SizeValue.word: [1, 0].bits,
+        SizeValue.longWord: [1, 1].bits,
       }[this];
   Bits get compiledSingleBit {
-    assert(this != Size.byte);
+    assert(this != SizeValue.byte);
     return {
-      Size.word: [0].bits,
-      Size.longWord: [1].bits,
+      SizeValue.word: [0].bits,
+      SizeValue.longWord: [1].bits,
     }[this];
   }
 }
