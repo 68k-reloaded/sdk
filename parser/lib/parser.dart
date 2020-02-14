@@ -17,3 +17,4 @@ export 'src/parser/parser.dart'
         OperationConfiguration;
 export 'src/parser/statements.dart';
 export 'src/scanner/scanner.dart' show Scanner, Token, TokenType;
+export 'src/utils.dart';

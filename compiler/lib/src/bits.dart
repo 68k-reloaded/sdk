@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 
+import 'package:m68k_reloaded_parser/parser.dart';
 import 'package:meta/meta.dart';
 
 /// A list of bits, interpreted as big-endian.
@@ -60,7 +61,8 @@ class Bits {
   String toRadixString(int radix) => combined.toRadixString(radix);
   String toHexString() => toRadixString(16);
 
-  bool operator ==(Object other) => other is Bits && bits == other.bits;
+  bool operator ==(Object other) =>
+      other is Bits && bits.deeplyEquals(other.bits);
   int get hashCode => bits.hashCode;
 }
 
