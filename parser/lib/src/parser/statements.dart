@@ -1,30 +1,53 @@
 import 'package:data_classes/data_classes.dart';
-import 'package:kt_dart/kt.dart';
 
 import '../location.dart';
 import '../utils.dart';
 
 part 'operation.dart';
 
+/// A complete [Program] that contains all the information necessary to run it.
 class Program {
-  final Map<LabelStatement, int> labelsToIndex;
-  final KtList<Statement> statements;
+  Program(this.statements) : assert(statements != null);
 
-  Program({@required this.labelsToIndex, @required this.statements})
-      : assert(labelsToIndex != null),
-        assert(statements != null);
+  /// All the statements of the program, including [Label]s, actual code
+  /// instructions as well as comments.
+  final List<Statement> statements;
 }
 
+/// A [Statement] in the [Program]. Corresponds to a [Label], actual code or a
+/// comment.
 abstract class Statement {
   Statement({@required this.location}) : assert(location != null);
 
+  /// The location in the original source code that this statement corresponds
+  /// to.
   final Location location;
 
+  /// Using [toAlignedString], statements can be turned into a string that is
+  /// easier to read because of uniform padding after instruction codes.
+  ///
+  /// For example, by calling the normal [toString] on statements, you might
+  /// get the following output:
+  ///
+  /// ```m68k
+  /// movem.l d0, -(sp)
+  /// clr.l d2
+  /// mov.w d1, d4
+  /// ```
+  ///
+  /// Using [toAlignedString], the output is much easier to read:
+  ///
+  /// ```m68k
+  /// movem.l  d0, -(sp)
+  /// clr.l    d2
+  /// mov.w    d1, d4
+  /// ```
   String toAlignedString() => toString();
 }
 
-class LabelStatement extends Statement {
-  LabelStatement({@required Location location, @required this.name})
+/// A label that points to a statement in the code.
+class Label extends Statement {
+  Label({@required Location location, @required this.name})
       : assert(name != null),
         super(location: location);
 
@@ -37,106 +60,112 @@ class LabelStatement extends Statement {
 
   @override
   operator ==(Object other) =>
-      other is LabelStatement &&
-      location == other.location &&
-      name == other.name;
+      other is Label && location == other.location && name == other.name;
   @override
   int get hashCode => hashList([runtimeType, location, name]);
 }
 
-class CommentStatement extends Statement {
-  CommentStatement({@required Location location, @required this.comment})
+/// An annotation for making it easier for so-called "humans" to read the
+/// source code.
+class Comment extends Statement {
+  Comment({@required Location location, @required this.comment})
       : assert(comment != null),
         super(location: location);
 
   final String comment;
 
-  String toString() => 'Comment: "$comment"';
+  String toString() => '* $comment';
 
   @override
   operator ==(Object other) =>
-      other is CommentStatement &&
+      other is Comment &&
       location == other.location &&
       comment == other.comment;
   @override
   int get hashCode => hashList([runtimeType, location, comment]);
 }
 
-class OperationStatement extends Statement {
-  final Operation operation;
-  final SizeStatement size;
-  final List<OperandStatement> operands;
+/// An actual [Operation] that represents a command that the CPU can execute.
+class Operation extends Statement {
+  final OperationType type;
+  final Size size;
+  final List<Operand> operands;
 
-  OperationStatement({
+  Operation({
     @required Location location,
-    @required this.operation,
+    @required this.type,
     @required this.size,
     @required this.operands,
-  })  : assert(operation != null),
+  })  : assert(type != null),
         assert(size != null),
         assert(operands != null),
         super(location: location);
 
-  String toString() => '$operation.${size.toShortString()} '
+  String toString() => '$type.${size.toShortString()} '
       '${operands.join(', ')}';
   String toAlignedString() =>
-      '${'${operation.toString()}.${size.toShortString()}'.padRight(8)} '
+      '${'${type.toString()}.${size.toShortString()}'.padRight(8)} '
       '${operands.join(', ')}';
 
   @override
   operator ==(Object other) =>
-      other is OperationStatement &&
+      other is Operation &&
       location == other.location &&
-      operation == other.operation &&
+      type == other.type &&
       size == other.size &&
       operands.deeplyEquals(other.operands);
   @override
-  int get hashCode =>
-      hashList([runtimeType, location, operation, size, operands]);
+  int get hashCode => hashList([runtimeType, location, type, size, operands]);
 }
 
-class SizeStatement extends Statement {
-  SizeStatement({@required Location location, @required this.size})
-      : assert(size != null),
+/// Each [Operation] can have a [Size] associated with it.
+class Size extends Statement {
+  Size(this.value, {@required Location location})
+      : assert(value != null),
         super(location: location);
 
-  final Size size;
+  final SizeValue value;
 
-  String toString() => size.toReadableString();
-  String toShortString() => size.toShortString();
+  String toString() => value.toReadableString();
+  String toShortString() => value.toShortString();
 
   @override
   operator ==(Object other) =>
-      other is SizeStatement &&
-      location == other.location &&
-      size == other.size;
+      other is Size && location == other.location && value == other.value;
   @override
-  int get hashCode => hashList([runtimeType, location, size]);
+  int get hashCode => hashList([runtimeType, location, value]);
 }
 
-abstract class RegisterStatement extends Statement {
-  RegisterStatement({@required Location location}) : super(location: location);
-
-  bool get isPc => false;
-  bool get isAx => false;
-  bool get isDx => false;
+/// An [Operand] given as an argument to an [Operation]. Can be something like
+/// a [Register] or an [Immediate] value.
+abstract class Operand extends Statement {
+  Operand({@required Location location}) : super(location: location);
 }
 
-class PcRegisterStatement extends RegisterStatement {
-  PcRegisterStatement({@required Location location})
-      : super(location: location);
+/// A reference to a [Register] that can store a value.
+abstract class Register extends Statement {
+  Register({@required Location location}) : super(location: location);
 
-  bool get isPc => true;
+  bool get isPc => this is PcRegister;
+  bool get isAx => this is AxRegister;
+  bool get isDx => this is DxRegister;
+}
+
+/// The [Register] of the program counter.
+class PcRegister extends Register {
+  PcRegister({@required Location location}) : super(location: location);
+
   String toString() => 'PC';
 
   @override
-  operator ==(Object other) => other is PcRegisterStatement;
+  operator ==(Object other) => other is PcRegister;
   @override
   int get hashCode => hashList([runtimeType, location]);
 }
 
-abstract class IndexedRegisterStatement extends RegisterStatement {
-  IndexedRegisterStatement({@required Location location, @required this.index})
+/// A [Register] with an [index]. Either [AxRegister] or [DxRegister].
+abstract class IndexedRegister extends Register {
+  IndexedRegister({@required Location location, @required this.index})
       : assert(index != null),
         assert(index >= 0),
         assert(index < 8),
@@ -147,150 +176,103 @@ abstract class IndexedRegisterStatement extends RegisterStatement {
   String toString() => 'X$index';
 }
 
-class AxRegisterStatement extends IndexedRegisterStatement {
-  AxRegisterStatement({@required Location location, @required int index})
+/// An address register: Ax
+/// A7 refers to the stack pointer (SP).
+class AxRegister extends IndexedRegister {
+  AxRegister({@required Location location, @required int index})
       : super(location: location, index: index);
+  AxRegister.sp({@required Location location})
+      : this(location: location, index: 7);
 
-  bool get isAx => true;
-  String toString() => 'A$index';
+  bool get isSp => index == 7;
+
+  String toString() => isSp ? 'SP' : 'A$index';
 
   @override
   operator ==(Object other) =>
-      other is AxRegisterStatement &&
-      location == other.location &&
-      index == other.index;
+      other is AxRegister && location == other.location && index == other.index;
   @override
   int get hashCode => hashList([runtimeType, location, index]);
 }
 
-class DxRegisterStatement extends IndexedRegisterStatement {
-  DxRegisterStatement({@required Location location, @required int index})
+/// A data register: Dx
+class DxRegister extends IndexedRegister {
+  DxRegister({@required Location location, @required int index})
       : super(location: location, index: index);
 
-  bool get isDx => true;
   String toString() => 'D$index';
 
   @override
   operator ==(Object other) =>
-      other is DxRegisterStatement &&
-      location == other.location &&
-      index == other.index;
+      other is DxRegister && location == other.location && index == other.index;
   @override
   int get hashCode => hashList([runtimeType, location, index]);
 }
 
-abstract class OperandStatement extends Statement {
-  OperandStatement({@required Location location}) : super(location: location);
-
-  OperandType get type;
-}
-
-class DxOperandStatement extends OperandStatement {
-  DxOperandStatement({@required Location location, @required this.register})
+/// An indirect address register operand: (Ax)
+class AxIndOperand extends Operand {
+  AxIndOperand({@required Location location, @required this.register})
       : assert(register != null),
         super(location: location);
 
-  @override
-  OperandType get type => OperandType.dx;
-  final DxRegisterStatement register;
+  final AxRegister register;
 
-  String toString() => register.toString();
+  String toString() => '($register)';
 
   @override
   operator ==(Object other) =>
-      other is DxOperandStatement &&
+      other is AxIndOperand &&
       location == other.location &&
       register == other.register;
   @override
   int get hashCode => hashList([runtimeType, location, register]);
 }
 
-class AxOperandStatement extends OperandStatement {
-  AxOperandStatement({@required Location location, @required this.register})
-      : assert(register != null),
-        super(location: location);
-
-  @override
-  OperandType get type => OperandType.ax;
-  final AxRegisterStatement register;
-
-  String toString() => register.toString();
-
-  @override
-  operator ==(Object other) =>
-      other is AxOperandStatement &&
-      location == other.location &&
-      register == other.register;
-  @override
-  int get hashCode => hashList([runtimeType, location, register]);
-}
-
-class AxIndOperandStatement extends OperandStatement {
-  AxIndOperandStatement({@required Location location, @required this.register})
-      : assert(register != null),
-        super(location: location);
-
-  @override
-  OperandType get type => OperandType.axInd;
-  final AxRegisterStatement register;
-
-  String toString() => register.toString();
-
-  @override
-  operator ==(Object other) =>
-      other is AxIndOperandStatement &&
-      location == other.location &&
-      register == other.register;
-  @override
-  int get hashCode => hashList([runtimeType, location, register]);
-}
-
-class AxIndWithPostIncOperandStatement extends OperandStatement {
-  AxIndWithPostIncOperandStatement({
+/// An indirect address register operand with post increment: (Ax)+
+class AxIndWithPostIncOperand extends Operand {
+  AxIndWithPostIncOperand({
     @required Location location,
     @required this.register,
   })  : assert(register != null),
         super(location: location);
 
-  @override
-  OperandType get type => OperandType.axIndWithPostInc;
-  final AxRegisterStatement register;
+  final AxRegister register;
 
   String toString() => '($register)+';
 
   @override
   operator ==(Object other) =>
-      other is AxIndWithPostIncOperandStatement &&
+      other is AxIndWithPostIncOperand &&
       location == other.location &&
       register == other.register;
   @override
   int get hashCode => hashList([runtimeType, location, register]);
 }
 
-class AxIndWithPreDecOperandStatement extends OperandStatement {
-  AxIndWithPreDecOperandStatement({
+/// An indirect address register operand with pre decrement: -(Ax)
+class AxIndWithPreDecOperand extends Operand {
+  AxIndWithPreDecOperand({
     @required Location location,
     @required this.register,
   })  : assert(register != null),
         super(location: location);
 
-  @override
-  OperandType get type => OperandType.axIndWithPreDec;
-  final AxRegisterStatement register;
+  final AxRegister register;
 
   String toString() => '-($register)';
 
   @override
   operator ==(Object other) =>
-      other is AxIndWithPreDecOperandStatement &&
+      other is AxIndWithPreDecOperand &&
       location == other.location &&
       register == other.register;
   @override
   int get hashCode => hashList([runtimeType, location, register]);
 }
 
-class AxIndWithDisplacementOperandStatement extends OperandStatement {
-  AxIndWithDisplacementOperandStatement({
+/// An indirect register operand with displacement: (d, Ax) or (d, PC)
+class IndWithDisplacementOperand extends Operand {
+  IndWithDisplacementOperand({
     @required Location location,
     @required this.register,
     @required this.displacement,
@@ -298,24 +280,23 @@ class AxIndWithDisplacementOperandStatement extends OperandStatement {
         assert(displacement != null),
         super(location: location);
 
-  @override
-  OperandType get type => OperandType.axIndWithDisplacement;
-  final AxRegisterStatement register;
+  final Register register;
   final int displacement;
 
   String toString() => '($displacement, $register)';
 
   @override
   operator ==(Object other) =>
-      other is AxIndWithDisplacementOperandStatement &&
+      other is IndWithDisplacementOperand &&
       location == other.location &&
       register == other.register;
   @override
   int get hashCode => hashList([runtimeType, location, register]);
 }
 
-class AxIndWithIndexOperandStatement extends OperandStatement {
-  AxIndWithIndexOperandStatement({
+/// An indirect register operand with an index: (d, An, Xn) or (d, PC, Xn)
+class IndWithIndexOperand extends Operand {
+  IndWithIndexOperand({
     @required Location location,
     @required this.register,
     @required this.displacement,
@@ -327,197 +308,128 @@ class AxIndWithIndexOperandStatement extends OperandStatement {
         assert(indexSize != null),
         super(location: location);
 
-  @override
-  OperandType get type => OperandType.axIndWithIndex;
-  final AxRegisterStatement register;
+  final Register register;
   final int displacement;
-  final IndexedRegisterStatement index;
-  final SizeStatement indexSize;
+  final IndexedRegister index;
+  final Size indexSize;
 
   String toString() => '($displacement, $register, $index$indexSize)';
 
   @override
   operator ==(Object other) =>
-      other is AxIndWithIndexOperandStatement &&
+      other is IndWithIndexOperand &&
       location == other.location &&
       register == other.register;
   @override
   int get hashCode => hashList([runtimeType, location, register]);
 }
 
-class AbsoluteWordOperandStatement extends OperandStatement {
-  AbsoluteWordOperandStatement(
-      {@required Location location, @required this.value})
+/// An absolute word operand: (xxx).W
+class AbsoluteWordOperand extends Operand {
+  AbsoluteWordOperand({@required Location location, @required this.value})
       : assert(value != null),
         super(location: location);
 
-  @override
-  OperandType get type => OperandType.absoluteWord;
   final int value;
 
   String toString() => '($value).W';
 
   @override
   operator ==(Object other) =>
-      other is AbsoluteWordOperandStatement &&
+      other is AbsoluteWordOperand &&
       location == other.location &&
       value == other.value;
   @override
   int get hashCode => hashList([runtimeType, location, value]);
 }
 
-class AbsoluteLongWordOperandStatement extends OperandStatement {
-  AbsoluteLongWordOperandStatement({
+/// An absolute long word: (xxx).L
+class AbsoluteLongWordOperand extends Operand {
+  AbsoluteLongWordOperand({
     @required Location location,
     @required this.value,
   })  : assert(value != null),
         super(location: location);
 
-  @override
-  OperandType get type => OperandType.absoluteLongWord;
   final int value;
 
   String toString() => '($value).L';
 
   @override
   operator ==(Object other) =>
-      other is AbsoluteLongWordOperandStatement &&
+      other is AbsoluteLongWordOperand &&
       location == other.location &&
       value == other.value;
   @override
   int get hashCode => hashList([runtimeType, location, value]);
 }
 
-class PcIndWithDisplacementOperandStatement extends OperandStatement {
-  PcIndWithDisplacementOperandStatement({
-    @required Location location,
-    @required this.displacement,
-  })  : assert(displacement != null),
-        super(location: location);
-
-  @override
-  OperandType get type => OperandType.pcIndWithDisplacement;
-  final int displacement;
-
-  String toString() => '($displacement, PC)';
-
-  @override
-  operator ==(Object other) =>
-      other is PcIndWithDisplacementOperandStatement &&
-      location == other.location &&
-      displacement == other.displacement;
-  @override
-  int get hashCode => hashList([runtimeType, location, displacement]);
-}
-
-class PcIndWithIndexOperandStatement extends OperandStatement {
-  PcIndWithIndexOperandStatement({
-    @required Location location,
-    @required this.displacement,
-    @required this.index,
-    @required this.indexSize,
-  })  : assert(displacement != null),
-        assert(index != null),
-        assert(indexSize != null),
-        super(location: location);
-
-  @override
-  OperandType get type => OperandType.pcIndWithIndex;
-  final int displacement;
-  final IndexedRegisterStatement index;
-  final SizeStatement indexSize;
-
-  String toString() => '($displacement, PC, $index$indexSize)';
-
-  @override
-  operator ==(Object other) =>
-      other is PcIndWithIndexOperandStatement &&
-      location == other.location &&
-      displacement == other.displacement &&
-      index == other.index &&
-      indexSize == other.indexSize;
-  @override
-  int get hashCode =>
-      hashList([runtimeType, location, displacement, index, indexSize]);
-}
-
-class ImmediateOperandStatement extends OperandStatement {
-  ImmediateOperandStatement({
+/// An immediate operand: #xxx
+class ImmediateOperand extends Operand {
+  ImmediateOperand({
     @required Location location,
     @required this.value,
   })  : assert(value != null),
         super(location: location);
 
-  @override
-  OperandType get type => OperandType.immediate;
   final int value;
 
   String toString() => '#$value';
 
   @override
   operator ==(Object other) =>
-      other is ImmediateOperandStatement &&
+      other is ImmediateOperand &&
       location == other.location &&
       value == other.value;
   @override
   int get hashCode => hashList([runtimeType, location, value]);
 }
 
-class CcrOperandStatement extends OperandStatement {
-  CcrOperandStatement({@required Location location})
-      : super(location: location);
+/// A CCR operand.
+class CcrOperand extends Operand {
+  CcrOperand({@required Location location}) : super(location: location);
 
-  @override
-  OperandType get type => OperandType.ccr;
   String toString() => 'CCR';
 
   @override
   operator ==(Object other) =>
-      other is CcrOperandStatement && location == other.location;
+      other is CcrOperand && location == other.location;
   @override
   int get hashCode => hashList([runtimeType, location]);
 }
 
-class SrOperandStatement extends OperandStatement {
-  SrOperandStatement({@required Location location}) : super(location: location);
+/// An SR operand.
+class SrOperand extends Operand {
+  SrOperand({@required Location location}) : super(location: location);
 
-  @override
-  OperandType get type => OperandType.sr;
   String toString() => 'SR';
 
   @override
-  operator ==(Object other) =>
-      other is SrOperandStatement && location == other.location;
+  operator ==(Object other) => other is SrOperand && location == other.location;
   @override
   int get hashCode => hashList([runtimeType, location]);
 }
 
-class AddressOperandStatement extends OperandStatement {
-  AddressOperandStatement({@required Location location})
-      : super(location: location);
+class AddressOperand extends Operand {
+  AddressOperand({@required Location location}) : super(location: location);
 
-  @override
-  OperandType get type => OperandType.address;
   String toString() => '[address operand]';
 
   @override
   operator ==(Object other) =>
-      other is AddressOperandStatement && location == other.location;
+      other is AddressOperand && location == other.location;
   @override
   int get hashCode => hashList([runtimeType, location]);
 }
 
-class UspOperandStatement extends OperandStatement {
-  UspOperandStatement({@required Location location})
-      : super(location: location);
+class UspOperand extends Operand {
+  UspOperand({@required Location location}) : super(location: location);
 
-  @override
-  OperandType get type => OperandType.usp;
   String toString() => 'USP';
 
   @override
   operator ==(Object other) =>
-      other is UspOperandStatement && location == other.location;
+      other is UspOperand && location == other.location;
   @override
   int get hashCode => hashList([runtimeType, location]);
 }
