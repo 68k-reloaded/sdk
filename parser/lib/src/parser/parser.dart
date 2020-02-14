@@ -240,29 +240,29 @@ abstract class Parser {
     }
 
     RegisterStatement parseRegister(Token token) {
-      final lexeme = token.lexeme;
+      final name = (token.literal as String).toUpperCase();
       if (!token.isIdentifier) {
-        throw ParserException('Expected register, but found $lexeme.');
+        throw ParserException('Expected register, but found $name.');
       }
-      if (lexeme == 'PC') {
+      if (name == 'PC') {
         return PcRegisterStatement(location: token.location);
       }
-      if (lexeme == 'SP') {
+      if (name == 'SP') {
         return AxRegisterStatement(location: token.location, index: 7);
       }
-      if (!lexeme.startsWith('A') && !lexeme.startsWith('D')) {
-        throw ParserException('Expected register, but found $lexeme.');
+      if (!name.startsWith('A') && !name.startsWith('D')) {
+        throw ParserException('Expected register, but found $name.');
       }
 
-      final index = int.tryParse(lexeme.substring(1));
+      final index = int.tryParse(name.substring(1));
       if (index == null) {
         throw ParserException(
-            'Expected a register index, but found ${lexeme.substring(1)}.');
+            'Expected a register index, but found ${name.substring(1)}.');
       }
-      if (lexeme.startsWith('A')) {
+      if (name.startsWith('A')) {
         return AxRegisterStatement(location: token.location, index: index);
       } else {
-        assert(lexeme.startsWith('D'));
+        assert(name.startsWith('D'));
         return DxRegisterStatement(location: token.location, index: index);
       }
     }

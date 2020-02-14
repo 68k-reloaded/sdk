@@ -29,4 +29,18 @@ extension FancyIterable<T> on Iterable<T> {
       return '${take(length - 1).join(', ')} and $last';
     }
   }
+
+  deeplyEquals(Iterable<T> other) {
+    if (length != other.length) {
+      return false;
+    }
+    final a = iterator;
+    final b = other.iterator;
+
+    do {
+      if (a.current != b.current) return false;
+    } while (a.moveNext() && b.moveNext());
+
+    return true;
+  }
 }
