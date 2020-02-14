@@ -1,10 +1,8 @@
-import 'package:m68k_reloaded_compiler/src/utils.dart';
 import 'package:m68k_reloaded_parser/parser.dart';
 
 import 'bits.dart';
 import 'compiler.dart';
-import 'statement_extensions.dart';
-import 'operand_extensions.dart';
+import 'utils.dart';
 
 final integerArithmeticCompilers = {
   OperationType.add: _compileAdd,

@@ -2,7 +2,7 @@ import 'package:m68k_reloaded_parser/parser.dart';
 
 import 'bits.dart';
 import 'compiler.dart';
-import 'statement_extensions.dart';
+import 'utils.dart';
 
 final logicalCompilers = {
   OperationType.not: _compileNot,
