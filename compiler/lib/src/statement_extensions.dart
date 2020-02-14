@@ -43,6 +43,10 @@ extension OperandStatementBits on OperandStatement {
   }
 }
 
+extension ImmediateOperandStatementBits on ImmediateOperandStatement {
+  Bits get compiledByteBits => Bits.byte(value);
+}
+
 extension RegisterStatementBits on RegisterStatement {
   Bits get compiledBits {
     assert(this is IndexedRegisterStatement, 'TODO: PcRegisterStatement');

@@ -6,8 +6,12 @@ import 'package:meta/meta.dart';
 /// A list of bits, interpreted as big-endian.
 @immutable
 class Bits {
-  static const lengthByte = 8;
-  static const lengthWord = 16;
+  static const byteLength = 8;
+  static const byteMin = 0;
+  static const byteMax = 1 << byteLength - 1;
+  static const wordLength = 16;
+  static const wordMin = 0;
+  static const wordMax = 1 << wordLength - 1;
 
   Bits(KtList<int> this.bits)
       : assert(bits != null),
@@ -15,8 +19,14 @@ class Bits {
   Bits.from(Iterable<int> bits) : this(KtList.from(bits));
   Bits.combine(List<Bits> bits)
       : this(KtList.from(bits).flatMap((b) => b.bits));
-  Bits.fromInt(int length, int number)
-      : this.from(List.generate(length, (i) => (number >> i) & 0x1).reversed);
+  Bits.fromInt(int length, int value)
+      : this.from(List.generate(length, (i) => (value >> i) & 0x1).reversed);
+
+  factory Bits.byte(int value) {
+    assert(byteMin <= value, 'Byte value must be >=$byteMin, was: $value');
+    assert(value <= byteMax, 'Byte value must be <=$byteMax, was: $value');
+    return Bits.fromInt(byteLength, value);
+  }
 
   static final zero = Bits.from([0]);
   static final one = Bits.from([1]);
@@ -41,8 +51,8 @@ class Bits {
         'Expected $expectedLength bits, got: ${bits.size}');
   }
 
-  void assertByteLength() => assertLength(lengthByte);
-  void assertWordLength() => assertLength(lengthWord);
+  void assertByteLength() => assertLength(byteLength);
+  void assertWordLength() => assertLength(wordLength);
 }
 
 extension BitList on List<int> {

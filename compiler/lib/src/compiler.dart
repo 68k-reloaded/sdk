@@ -4,8 +4,10 @@ import 'package:kt_dart/kt.dart';
 import 'package:m68k_reloaded_compiler/src/compiler_logical.dart';
 import 'package:m68k_reloaded_parser/parser.dart';
 
+import 'compiler_data_movement.dart';
+
 class Compiler {
-  static final _operationCompilers = logicalCompilers;
+  static final _operationCompilers = dataMovementCompilers + logicalCompilers;
 
   Compiler._();
 
