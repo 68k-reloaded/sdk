@@ -47,6 +47,16 @@ AxRegister ax(int index) {
   );
 }
 
+AxIndOperand axInd(int index) {
+  return AxIndOperand(
+    location: Location.invalid,
+    register: AxRegister(
+      location: Location.invalid,
+      index: index,
+    ),
+  );
+}
+
 AxIndWithPreDecOperand axIndWithPreDec(int index) {
   return AxIndWithPreDecOperand(
     location: Location.invalid,
