@@ -64,6 +64,6 @@ class NullToken extends Token {
   const NullToken()
       : super(
           type: null, // We match no type.
-          location: const Location.invalid(),
+          location: Location.invalid,
         );
 }

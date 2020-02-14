@@ -535,7 +535,7 @@ class Operation {
   );
 
   // Logical
-  // TODO: NOT, OR, ORI
+  // TODO: OR, ORI
   static KtList<Operation> logical = KtList.from([
     ...[and, andi],
     ...[eor, eori],
@@ -619,6 +619,17 @@ class Operation {
         operandTypes: [
           {OperandType.immediate},
           {OperandType.sr},
+        ],
+      ),
+    },
+  );
+  static Operation not = Operation(
+    code: 'NOT',
+    configurations: {
+      OperationConfiguration(
+        sizes: _sizesBWL,
+        operandTypes: [
+          _typesNoAxPcImm,
         ],
       ),
     },
