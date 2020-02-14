@@ -1,11 +1,13 @@
 import 'package:kt_dart/kt.dart';
 
 import 'src/error.dart';
+import 'src/location.dart';
 import 'src/parser/parser.dart';
 import 'src/scanner/scanner.dart';
 
 void main() {
   // parse('');
+  parse('move.w d1, d2');
   parse('''
 * hey
    * ho
@@ -36,7 +38,7 @@ void parse(String source) {
     source: source,
     errorCollector: errorCollector,
   );
-  // tokens.forEach(print);
+  tokens.forEach(print);
 
   final program = Parser.parse(
     tokens: tokens,
