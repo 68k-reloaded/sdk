@@ -73,7 +73,7 @@ abstract class Parser {
       // statement, which will be inserted at the end of the list.
       if (tokens.isNotEmpty) {
         final state = _LineParserState(tokens, errorCollector, line);
-        state.tryOrRegisterError(() {
+        state.tryOrCollectError(() {
           final statement = parseOperationOrDirective(state);
 
           if (statement != null) {
@@ -117,7 +117,7 @@ abstract class Parser {
 
     // Parse labels.
     while (state.peek2().isColon || state.peek3().isColon) {
-      state.tryOrRegisterError(() {
+      state.tryOrCollectError(() {
         labels.add(parseLabel(state));
       });
     }
@@ -155,12 +155,12 @@ abstract class Parser {
     SizeStatement size;
     if (state.peek().isDot) {
       state.advance();
-      state.tryOrRegisterError(() => size = parseSize(state));
+      state.tryOrCollectError(() => size = parseSize(state));
     }
 
     final operands = <OperandStatement>[];
     while (true) {
-      state.tryOrRegisterError(() {
+      state.tryOrCollectError(() {
         operands.add(parseOperand(state));
       });
       final isNextComma = state.peek()?.isComma ?? false;
@@ -173,12 +173,13 @@ abstract class Parser {
     // [operands]. It's time to see if there actually exists an operation or
     // directive which matches that signature!
 
+    final code = (identifier.literal as String).toUpperCase();
     var operation = Operation.values.firstOrNull(
-      (operation) => operation.code == identifier.literal,
+      (operation) => operation.code == code,
     );
 
     if (operation != null) {
-      state.tryOrRegisterError(() {
+      state.tryOrCollectError(() {
         ensureMatchingOperationConfigurationExists(
           operation,
           size.size,
@@ -534,7 +535,7 @@ class _LineParserState {
 
   // Calls the given [callback]. Returns true if it runs successfully.
   // If it throws an error, collects it and returns false.
-  bool tryOrRegisterError(void Function() callback) {
+  bool tryOrCollectError(void Function() callback) {
     try {
       callback();
       return true;

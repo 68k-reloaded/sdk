@@ -28,6 +28,11 @@ void main() {
       expectParsedStatements('', []);
     });
 
+    test('clr', () {
+      expectParsedStatements('clr', []);
+      expectParsedStatements('', []);
+    });
+
     tearDown(() {
       errorCollector = null;
     });

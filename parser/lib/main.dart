@@ -9,7 +9,7 @@ void main() {
    * ho
 drawPaddle:
  MOVEM.L D0,-(SP)
- CLR.L   D2        * this does something
+ clr.L   D2        * this does something
  MOVE.W  D1,D2
  CLR.L   D4
  MOVE.W  D1,D4
