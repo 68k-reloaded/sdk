@@ -4,6 +4,7 @@ import 'package:m68k_reloaded_parser/parser.dart';
 import 'bits.dart';
 import 'compiler.dart';
 import 'statement_extensions.dart';
+import 'operand_extensions.dart';
 
 final dataMovementCompilers = {
   OperationType.move: _compileMove,
@@ -49,13 +50,13 @@ CompiledStatement _compileMoveq(Operation statement) {
   assert(statement.type == OperationType.moveq);
   assert(statement.operands.length == 2);
 
-  final immediate = statement.operands.first;
-  assert(immediate is ImmediateOperand);
-
-  final destination = statement.operands[1];
-  assert(destination is DxRegister);
+  final immediate = statement.operands.first as ImmediateOperand;
+  final destination = statement.operands.second as DxRegister;
 
   final registerBits = destination.compiledRegister;
-  final dataBits = (immediate as ImmediateOperand).compiledByteBits;
-  return CompiledStatement(_moveqBits + registerBits + [0].bits + dataBits);
+  final dataBits = immediate.compiledByteBits;
+  return CompiledStatement(
+    _moveqBits + registerBits + [0].bits + dataBits,
+    immediateOrSourceExtensions: immediate.compiledValue(statement.size.value),
+  );
 }

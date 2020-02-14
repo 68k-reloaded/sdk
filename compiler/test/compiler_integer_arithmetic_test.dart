@@ -62,8 +62,8 @@ void main() {
         ),
         'CMPI.L #\$42, A5': StatementWithExpectedResult(
           type: OperationType.cmpi,
-          size: SizeValue.word,
-          operands: [immediate(0x42), dx(0)],
+          size: SizeValue.longWord,
+          operands: [immediate(0x42), ax(0)],
           expectedResult: CompiledStatement(
             [0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1].bits,
             immediateOrSourceExtensions: [

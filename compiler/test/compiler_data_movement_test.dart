@@ -9,7 +9,7 @@ void main() {
   group('Compiler compiles single data movement statement', () {
     group('MOVE:', () {
       <String, StatementWithExpectedResult>{
-        'MOVE.B #0,D1': StatementWithExpectedResult(
+        'MOVE.B #0, D1': StatementWithExpectedResult(
           type: OperationType.move,
           size: SizeValue.byte,
           operands: [immediate(0), dx(1)],
@@ -18,7 +18,7 @@ void main() {
             immediateOrSourceExtensions: [Bits.word(0x0000)],
           ),
         ),
-        'MOVE.W #1,D2': StatementWithExpectedResult(
+        'MOVE.W #1, D2': StatementWithExpectedResult(
           type: OperationType.move,
           size: SizeValue.word,
           operands: [immediate(1), dx(2)],
@@ -27,7 +27,7 @@ void main() {
             immediateOrSourceExtensions: [Bits.word(0x0001)],
           ),
         ),
-        'MOVE.W D2,D3': StatementWithExpectedResult(
+        'MOVE.W D2, D3': StatementWithExpectedResult(
           type: OperationType.move,
           size: SizeValue.word,
           operands: [dx(2), dx(3)],
@@ -38,7 +38,7 @@ void main() {
         'MOVE.L #\$10004042, D3': StatementWithExpectedResult(
           type: OperationType.move,
           size: SizeValue.longWord,
-          operands: [immediate(0x42), dx(3)],
+          operands: [immediate(0x10004042), dx(3)],
           expectedResult: CompiledStatement(
             [0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0, 0].bits,
             immediateOrSourceExtensions: [
@@ -63,7 +63,7 @@ void main() {
         ),
         'MOVEQ.L #2, D7': StatementWithExpectedResult(
           type: OperationType.moveq,
-          size: SizeValue.word,
+          size: SizeValue.longWord,
           operands: [immediate(2), dx(7)],
           expectedResult: CompiledStatement(
             [0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0].bits,

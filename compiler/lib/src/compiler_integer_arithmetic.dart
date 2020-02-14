@@ -50,9 +50,7 @@ CompiledStatement _compileCmpi(Operation statement) {
   assert(statement.type == OperationType.cmpi);
   assert(statement.operands.length == 2);
 
-  final data = statement.operands.first;
-  assert(data.type == OperandType.immediate);
-
+  final data = statement.operands.first as ImmediateOperand;
   final destination = statement.operands.second;
   assert(operandTypesNoAxPcImm.contains(destination.type));
 
@@ -61,8 +59,7 @@ CompiledStatement _compileCmpi(Operation statement) {
   final destRegisterBits = destination.compiledRegister;
   return CompiledStatement(
     _cmpiBits + sizeBits + destModeBits + destRegisterBits,
-    immediateOrSourceExtensions:
-        (data as ImmediateOperand).compiledValue(statement.size.value),
+    immediateOrSourceExtensions: data.compiledValue(statement.size.value),
   );
 }
 
