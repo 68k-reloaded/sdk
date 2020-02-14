@@ -76,13 +76,16 @@ abstract class Parser {
         state.tryOrRegisterError(() {
           final statement = parseOperationOrDirective(state);
 
-          // A new statement got parsed. Labels that came before should point
-          // to this statement.
-          statements.add(statement);
-          labels.addAll({
-            for (final label in labelsWaitingForCode) label: statements.length,
-          });
-          labelsWaitingForCode.clear();
+          if (statement != null) {
+            // A new statement got parsed. Labels that came before should point
+            // to this statement.
+            statements.add(statement);
+            labels.addAll({
+              for (final label in labelsWaitingForCode)
+                label: statements.length,
+            });
+            labelsWaitingForCode.clear();
+          }
         });
       }
 
@@ -91,7 +94,7 @@ abstract class Parser {
       if (comment != null) {
         statements.add(CommentStatement(
           location: comment.location,
-          comment: comment.literal,
+          comment: (comment.literal as String).trim(),
         ));
       }
     });
@@ -156,12 +159,12 @@ abstract class Parser {
     }
 
     final operands = <OperandStatement>[];
-    while (state.peek()?.isComment == false) {
+    while (true) {
       state.tryOrRegisterError(() {
         operands.add(parseOperand(state));
       });
-      final nextIsComma = state.peek()?.isComma ?? false;
-      if (!nextIsComma) break;
+      final isNextComma = state.peek()?.isComma ?? false;
+      if (!isNextComma) break;
       state.expect(TokenType.comma,
           expected: 'a comma indicating more operands are coming');
     }
@@ -194,6 +197,16 @@ abstract class Parser {
     // No matching operation was found. Maybe this is a directive?
 
     //return DirectiveStatement();
+
+    state.errorCollector.add(Error(
+      location: identifier.location,
+      message: 'Unknown operation ${identifier.literal}.',
+    ));
+
+    // Although the operation is unknown, we still continue parsing the rest of
+    // the program so that we can report all errors at once. So we just return
+    // null here, causing this statement to simple be omitted in the resulting
+    // statement list.
     return null;
   }
 

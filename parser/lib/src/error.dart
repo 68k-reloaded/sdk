@@ -23,7 +23,7 @@ class ErrorCollector {
 
   void add(Error error) {
     assert(error != null);
-    print('Error $error');
+    print(error);
     _errors.add(error);
   }
 }
