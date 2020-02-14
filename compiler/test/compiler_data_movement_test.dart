@@ -1,5 +1,5 @@
-import 'package:kt_dart/kt.dart';
-import 'package:m68k_reloaded_compiler/compiler.dart';
+import 'package:m68k_reloaded_compiler/src/bits.dart';
+import 'package:m68k_reloaded_compiler/src/compiler.dart';
 import 'package:m68k_reloaded_parser/parser.dart';
 import 'package:test/test.dart';
 
@@ -13,29 +13,28 @@ void main() {
           operation: Operation.moveq,
           size: Size.longWord,
           operands: [immediate(0), dx(0)],
-          expectedResult: [0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+          expectedResult: CompiledStatement(
+            [0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0].bits,
+          ),
         ),
         'MOVEQ.L #2, D7': StatementWithExpectedResult(
           operation: Operation.moveq,
           size: Size.word,
           operands: [immediate(2), dx(7)],
-          expectedResult: [0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+          expectedResult: CompiledStatement(
+            [0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0].bits,
+          ),
         ),
         'MOVEQ.L #\$42, D3': StatementWithExpectedResult(
           operation: Operation.moveq,
           size: Size.longWord,
           operands: [immediate(0x42), dx(3)],
-          expectedResult: [0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+          expectedResult: CompiledStatement(
+            [0, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0].bits,
+          ),
         ),
       }.forEach((name, stmt) {
-        test(name, () {
-          final program = Program(
-            statements: KtList.of(stmt.statement),
-            labelsToIndex: {},
-          );
-          final compiled = Compiler.compile(program);
-          expect(compiled, equals(stmt.expectedResult));
-        });
+        test(name, () => stmt.test());
       });
     });
   });

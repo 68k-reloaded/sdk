@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:kt_dart/kt.dart';
 import 'package:m68k_reloaded_parser/parser.dart';
 
@@ -12,7 +10,7 @@ final KtMap<Operation, StatementCompiler> logicalCompilers = KtMap.from({
 });
 
 final _notBits = [0, 1, 0, 0, 0, 1, 1, 0].bits;
-Uint8List _compileNot(OperationStatement statement) {
+CompiledStatement _compileNot(OperationStatement statement) {
   assert(statement.operation == Operation.not);
   assert(statement.operands.length == 1);
   final operand = statement.operands.first;
@@ -21,7 +19,6 @@ Uint8List _compileNot(OperationStatement statement) {
   final addressModeBits = operand.compiledMode;
   final addressRegisterBits = operand.compiledRegister;
 
-  final bits = _notBits + sizeBits + addressModeBits + addressRegisterBits;
-  bits.assertWordLength();
-  return bits.asUint8List;
+  return CompiledStatement(
+      _notBits + sizeBits + addressModeBits + addressRegisterBits);
 }

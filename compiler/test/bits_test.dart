@@ -4,30 +4,17 @@ import 'package:test/test.dart';
 
 void main() {
   group('Bits', () {
-    final exampleLists = <List<int>>[
-      [],
-      [0],
-      [1],
-      [0, 0, 0, 0, 0],
-      [0, 1, 0, 1, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    ];
-
     group('created correctly', () {
-      group('from KtList', () {
-        exampleLists.forEach((bits) {
-          test(
-            bits.toString(),
-            () => expect(Bits(KtList.from(bits)).bits.asList(), equals(bits)),
-          );
-        });
-      });
       group('from List', () {
-        exampleLists.forEach((bits) {
-          test(
-            bits.toString(),
-            () => expect(Bits.from(bits).bits.asList(), equals(bits)),
-          );
+        <List<int>>[
+          [],
+          [0],
+          [1],
+          [0, 0, 0, 0, 0],
+          [0, 1, 0, 1, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ].forEach((bits) {
+          test(bits.toString(), () => expect(Bits(bits).bits, equals(bits)));
         });
       });
       group('from int', () {
@@ -48,10 +35,41 @@ void main() {
           test(
             'Length: $length, value: 0x${value.toRadixString(16)}',
             () => expect(
-              Bits.fromInt(length, value).bits.asList(),
+              Bits.fromInt(length, value).bits,
               equals(expectedBits),
             ),
           );
+        });
+      });
+      group('from byte', () {
+        <int, List>{
+          0x00: [0, 0, 0, 0, 0, 0, 0, 0],
+          0x01: [0, 0, 0, 0, 0, 0, 0, 1],
+          0x11: [0, 0, 0, 1, 0, 0, 0, 1],
+          0x42: [0, 1, 0, 0, 0, 0, 1, 0],
+          0x57: [0, 1, 0, 1, 0, 1, 1, 1],
+          0xF0: [1, 1, 1, 1, 0, 0, 0, 0],
+          0xFF: [1, 1, 1, 1, 1, 1, 1, 1],
+        }.forEach((value, expectedBits) {
+          test(
+            '0x${value.toRadixString(16)}',
+            () => expect(Bits.byte(value).bits, equals(expectedBits)),
+          );
+        });
+      });
+    });
+
+    group('equals', () {
+      group('on equal bits', () {
+        <List<int>>[
+          [],
+          [0],
+          [1],
+          [0, 1],
+          [0, 0, 0, 0],
+          [1, 1, 1, 1, 1, 1, 1, 1],
+        ].forEach((list) {
+          test(list.toString(), () => expect(Bits(list), equals(Bits(list))));
         });
       });
     });

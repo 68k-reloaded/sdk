@@ -1,15 +1,15 @@
-import 'dart:typed_data';
-
-import 'package:m68k_reloaded_compiler/src/bits.dart';
+import 'package:m68k_reloaded_compiler/compiler.dart';
+import 'package:m68k_reloaded_compiler/src/compiler.dart';
 import 'package:m68k_reloaded_parser/parser.dart';
 import 'package:meta/meta.dart';
+import 'package:test/test.dart';
 
 class StatementWithExpectedResult {
   StatementWithExpectedResult({
     @required Operation operation,
     @required Size size,
     @required List<OperandStatement> operands,
-    @required List<int> expectedResult,
+    @required this.expectedResult,
   })  : assert(operation != null),
         assert(size != null),
         assert(operands != null),
@@ -23,10 +23,14 @@ class StatementWithExpectedResult {
           ),
           operands: operands,
         ),
-        this.expectedResult = expectedResult.bits.asUint8List;
+        assert(expectedResult != null);
 
   final Statement statement;
-  final Uint8List expectedResult;
+  final CompiledStatement expectedResult;
+
+  void test() {
+    expect(Compiler.compileStatement(statement), equals(expectedResult));
+  }
 }
 
 DxOperandStatement dx(int index) {
