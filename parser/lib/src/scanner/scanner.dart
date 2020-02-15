@@ -6,147 +6,142 @@ import 'token.dart';
 
 export 'token.dart';
 
-class Scanner {
-  Scanner._();
+extension ScannableTokens on String {
+  List<Token> scanned([ErrorCollector errorCollector]) {
+    errorCollector ??= ErrorCollector();
+    return scan(source: this, errorCollector: errorCollector);
+  }
+}
 
-  static const _singleCharTokens = {
-    '(': TokenType.leftParen,
-    ')': TokenType.rightParen,
-    ',': TokenType.comma,
-    '.': TokenType.dot,
-    '+': TokenType.plus,
-    '#': TokenType.numberSign,
-    ':': TokenType.colon,
-  };
-  static const _newline = ['\r', '\n'];
-  static const _whitespace = [' ', '\t'];
+const _singleCharTokens = {
+  '(': TokenType.leftParen,
+  ')': TokenType.rightParen,
+  ',': TokenType.comma,
+  '.': TokenType.dot,
+  '+': TokenType.plus,
+  '#': TokenType.numberSign,
+  ':': TokenType.colon,
+};
+const _newline = ['\r', '\n'];
+const _whitespace = [' ', '\t'];
 
-  static List<Token> scan({
-    @required String source,
-    @required ErrorCollector errorCollector,
-  }) {
-    assert(source != null);
-    assert(errorCollector != null);
+List<Token> scan({
+  @required String source,
+  @required ErrorCollector errorCollector,
+}) {
+  assert(source != null);
+  assert(errorCollector != null);
 
-    final state = _ScannerState(source);
-    while (!state.isAtEnd) {
-      _scanNextToken(state: state, errorCollector: errorCollector);
-    }
-
-    return state.tokens;
+  final state = _ScannerState(source);
+  while (!state.isAtEnd) {
+    _scanNextToken(state: state, errorCollector: errorCollector);
   }
 
-  static void _scanNextToken({
-    @required _ScannerState state,
-    @required ErrorCollector errorCollector,
-  }) {
-    assert(state != null);
-    assert(errorCollector != null);
+  return state.tokens;
+}
 
-    final c = state.advance();
+void _scanNextToken({
+  @required _ScannerState state,
+  @required ErrorCollector errorCollector,
+}) {
+  assert(state != null);
+  assert(errorCollector != null);
 
-    if (_singleCharTokens.containsKey(c)) {
-      state.addToken(_singleCharTokens[c]);
-      return;
-    }
+  final c = state.advance();
 
-    // Numbers
-    if (_isDecimalDigit(c) || (c == '-' && _isDecimalDigit(state.peek()))) {
-      _parseDecimalNumber(state);
-      return;
-    } else if (c == '\$') {
-      _parseHexNumber(state);
-      return;
-    } else if (c == '-') {
-      state.addToken(TokenType.minus);
-      return;
-    }
-
-    // Comment
-    if (c == '*') {
-      _parseComment(state);
-      return;
-    }
-
-    // Whitespace
-    if (_whitespace.contains(c)) {
-      state.col++;
-      state.start = state.current;
-      return;
-    } else if (_newline.contains(c)) {
-      if (c == '\r' && state.peek() == '\n') {
-        state.advance();
-      }
-      state.line++;
-      state.start = state.current;
-      state.col = 1;
-      return;
-    }
-
-    // Identifier
-    if (_isLetterDigitUnderscore(c)) {
-      _parseIdentifier(state);
-      return;
-    }
-
-    errorCollector.add(Error(
-      location: state.location,
-      message: 'Unexpected character $c.',
-    ));
+  if (_singleCharTokens.containsKey(c)) {
+    state.addToken(_singleCharTokens[c]);
+    return;
   }
 
-  static bool _isDecimalDigit(String c) => '1234567890'.contains(c);
-  static bool _isHexDigit(String c) => '1234567890ABCDEFabcdef'.contains(c);
-
-  static bool _isLetterDigitUnderscore(String c) =>
-      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_'.contains(c) ||
-      _isDecimalDigit(c);
-
-  static void _parseToken<T>({
-    @required _ScannerState state,
-    @required TokenType type,
-    @required bool Function(String char) selector,
-    dynamic Function(String raw) mapper = _it,
-  }) {
-    assert(state != null);
-    final raw = state.advanceWhile(selector);
-    state.addToken(type, mapper(raw));
+  // Numbers
+  if (_isDecimalDigit(c) || (c == '-' && _isDecimalDigit(state.peek()))) {
+    _parseDecimalNumber(state);
+    return;
+  } else if (c == '\$') {
+    _parseHexNumber(state);
+    return;
+  } else if (c == '-') {
+    state.addToken(TokenType.minus);
+    return;
   }
 
-  static T _it<T>(T value) => value;
+  // Comment
+  if (c == '*') {
+    _parseComment(state);
+    return;
+  }
 
-  static void _parseDecimalNumber(_ScannerState state) => _parseToken(
-        state: state,
-        type: TokenType.number,
-        selector: _isDecimalDigit,
-        mapper: (raw) => int.parse(raw),
-      );
-  static void _parseHexNumber(_ScannerState state) {
-    assert(state != null);
+  // Whitespace
+  if (_whitespace.contains(c)) {
+    state.col++;
+    state.start = state.current;
+    return;
+  } else if (_newline.contains(c)) {
+    if (c == '\r' && state.peek() == '\n') {
+      state.advance();
+    }
+    state.line++;
+    state.start = state.current;
+    state.col = 1;
+    return;
+  }
 
-    if (state.peek() == '-') state.advance();
-    _parseToken(
+  // Identifier
+  if (_isLetterDigitUnderscore(c)) {
+    _parseIdentifier(state);
+    return;
+  }
+
+  errorCollector.add(Error(
+    location: state.location.withLength(1),
+    message: 'Unexpected character $c.',
+  ));
+}
+
+bool _isDecimalDigit(String c) => '1234567890'.contains(c);
+bool _isHexDigit(String c) => '1234567890ABCDEFabcdef'.contains(c);
+
+bool _isLetterDigitUnderscore(String c) =>
+    'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_'.contains(c) ||
+    _isDecimalDigit(c);
+
+void _parseToken<T>({
+  @required _ScannerState state,
+  @required TokenType type,
+  @required bool Function(String char) selector,
+}) {
+  assert(state != null);
+  state.advanceWhile(selector);
+  state.addToken(type);
+}
+
+void _parseDecimalNumber(_ScannerState state) => _parseToken(
       state: state,
       type: TokenType.number,
-      selector: _isHexDigit,
-      // Trim the leading $
-      mapper: (raw) => int.parse(raw.substring(1), radix: 16),
+      selector: _isDecimalDigit,
     );
-  }
+void _parseHexNumber(_ScannerState state) {
+  assert(state != null);
 
-  static void _parseComment(_ScannerState state) => _parseToken(
-        state: state,
-        type: TokenType.comment,
-        selector: (c) => !_newline.contains(c),
-        // Trim the leading *
-        mapper: (c) => c.substring(1),
-      );
-  static void _parseIdentifier(_ScannerState state) => _parseToken(
-        state: state,
-        type: TokenType.identifier,
-        selector: _isLetterDigitUnderscore,
-      );
+  if (state.peek() == '-') state.advance();
+  _parseToken(
+    state: state,
+    type: TokenType.number,
+    selector: _isHexDigit,
+  );
 }
+
+void _parseComment(_ScannerState state) => _parseToken(
+      state: state,
+      type: TokenType.comment,
+      selector: (c) => !_newline.contains(c),
+    );
+void _parseIdentifier(_ScannerState state) => _parseToken(
+      state: state,
+      type: TokenType.identifier,
+      selector: _isLetterDigitUnderscore,
+    );
 
 class _ScannerState {
   _ScannerState(this.source) : assert(source != null);
@@ -156,7 +151,7 @@ class _ScannerState {
   int start = 0;
   int line = 1;
   int col = 1;
-  Location get location => Location(line: line, col: col);
+  Location get location => Location(line: line, col: col, length: 0);
   int current = 0;
   final tokens = <Token>[];
 
@@ -173,12 +168,11 @@ class _ScannerState {
     return source.substring(start, current);
   }
 
-  void addToken(TokenType type, [dynamic literal]) {
+  void addToken(TokenType type) {
     tokens.add(Token(
       type: type,
-      location: location,
+      location: location.withLength(currentLexeme.length),
       lexeme: currentLexeme,
-      literal: literal,
     ));
     col += current - start;
     start = current;

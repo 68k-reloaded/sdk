@@ -5,12 +5,21 @@ import 'package:meta/meta.dart';
 class Location {
   final int line;
   final int col;
+  final int length;
 
-  const Location({@required this.line, @required this.col})
-      : assert(line != null),
-        assert(col != null);
+  const Location({
+    @required this.line,
+    @required this.col,
+    @required this.length,
+  })  : assert(line != null),
+        assert(col != null),
+        assert(length != null);
 
-  static const invalid = Location(line: -1, col: -1);
+  static const invalid = Location(line: 0, col: 0, length: 0);
+
+  Location withLength(int length) =>
+      Location(line: line, col: col, length: length);
+  Location inLineAbove() => Location(line: line - 1, col: col, length: length);
 
   @override
   String toString() => '$line:$col';

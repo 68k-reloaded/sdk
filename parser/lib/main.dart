@@ -1,13 +1,10 @@
-import 'package:kt_dart/kt.dart';
-
 import 'src/error.dart';
-import 'src/location.dart';
 import 'src/parser/parser.dart';
 import 'src/scanner/scanner.dart';
 
 void main() {
   // parse('');
-  parse('move.w d1, d2');
+  // parse('move.w d1, d2');
   parse('''
 * hey
    * ho
@@ -33,17 +30,12 @@ drawPaddle:
 
 void parse(String source) {
   final errorCollector = ErrorCollector();
+  final program = source.scanned(errorCollector).parsed(errorCollector);
 
-  final tokens = Scanner.scan(
-    source: source,
-    errorCollector: errorCollector,
-  );
-  tokens.forEach(print);
+  print('Errors:');
+  errorCollector.dump(source);
 
-  final program = Parser.parse(
-    tokens: tokens,
-    errorCollector: errorCollector,
-  );
+  print('\nReconstructed program:');
   program.statements
       .forEach((statement) => print(statement?.toAlignedString()));
 }

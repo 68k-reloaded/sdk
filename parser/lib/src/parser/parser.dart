@@ -1,7 +1,6 @@
 import 'dart:core';
 
 import 'package:collection/collection.dart';
-import 'package:kt_dart/kt.dart';
 import 'package:meta/meta.dart';
 
 import '../error.dart';
@@ -12,540 +11,465 @@ import 'statements.dart';
 
 export 'statements.dart';
 
-class ParserException implements Exception {
-  ParserException(this.message);
+// TODO: handle hexadecimal numbers with a dollar sign: $12
 
-  final String message;
-
-  @override
-  String toString() => message;
+class ParserException extends Error {
+  ParserException(Location location, String message)
+      : super(location: location, message: message);
 }
 
-abstract class Parser {
-  Parser._();
-
-  static Program parse({
-    @required List<Token> tokens,
-    @required ErrorCollector errorCollector,
-  }) {
-    assert(tokens != null);
-    assert(errorCollector != null);
-
-    final labels = <LabelStatement, int>{};
-    final statements = <Statement>[];
-
-    final tokensByLine = groupBy<Token, int>(
-      tokens,
-      (Token token) => token.location.line,
-    );
-
-    final labelsWaitingForCode = <LabelStatement>{};
-
-    tokensByLine.forEach((line, tokens) {
-      // Global label line.
-      if (tokens.firstOrNullToken.isIdentifier && tokens.secondOrNull.isColon) {
-        labelsWaitingForCode.add(LabelStatement(
-          location: tokens.first.location,
-          name: tokens.first.literal,
-        ));
-        tokens.removeRange(0, 2);
-      }
-
-      // Local label line.
-      if (tokens.firstOrNullToken.isDot &&
-          tokens.secondOrNullToken.isIdentifier &&
-          tokens.thirdOrNullToken.isColon) {
-        labelsWaitingForCode.add(LabelStatement(
-          location: tokens.first.location,
-          name: '.${tokens.first.literal}',
-        ));
-        tokens.removeRange(0, 3);
-      }
-
-      // Pre-parse comments at the end of the line so that the only thing left
-      // is a single operation or directive.
-      Token comment;
-      if (tokens.lastOrNullToken.isComment) {
-        comment = tokens.last;
-        tokens.removeLast();
-      }
-
-      // This is an operation or a directive. Let the labels point to the next
-      // statement, which will be inserted at the end of the list.
-      if (tokens.isNotEmpty) {
-        final state = _LineParserState(tokens, errorCollector, line);
-        state.tryOrCollectError(() {
-          final statement = parseOperationOrDirective(state);
-
-          if (statement != null) {
-            // A new statement got parsed. Labels that came before should point
-            // to this statement.
-            statements.add(statement);
-            labels.addAll({
-              for (final label in labelsWaitingForCode)
-                label: statements.length,
-            });
-            labelsWaitingForCode.clear();
-          }
-        });
-      }
-
-      // If there was a comment after the optional statement, now is the time
-      // to save it!
-      if (comment != null) {
-        statements.add(CommentStatement(
-          location: comment.location,
-          comment: (comment.literal as String).trim(),
-        ));
-      }
-    });
-
-    // Once we parsed the file, there should be no labels waiting for code.
-    for (final label in labelsWaitingForCode) {
-      errorCollector.add(Error(
-        location: label.location,
-        message: "There should be code after labels, but label $label isn't "
-            "followed by any statements.",
-      ));
-    }
-
-    return Program(labelsToIndex: labels, statements: statements.kt);
+extension ParseableTokens on Iterable<Token> {
+  Program parsed([ErrorCollector errorCollector]) {
+    errorCollector ??= ErrorCollector();
+    return parse(tokens: toList(), errorCollector: errorCollector);
   }
+}
 
-  static void parseLine(_LineParserState state) {
-    // A line can contain some labels as well as an operation or directive.
-    final labels = <LabelStatement>{};
+/// Parses a list of [Token]s into a [Program].
+Program parse({
+  @required List<Token> tokens,
+  @required ErrorCollector errorCollector,
+}) {
+  assert(tokens != null);
+  assert(errorCollector != null);
 
-    // Parse labels.
-    while (state.peek2().isColon || state.peek3().isColon) {
-      state.tryOrCollectError(() {
-        labels.add(parseLabel(state));
-      });
-    }
+  // We analyze the source file line by line.
+  final tokensByLine = groupBy<Token, int>(
+    tokens,
+    (Token token) => token.location.line,
+  );
 
-    if (state.peek()?.isIdentifier ?? false) {
-      parseOperationOrDirective(state);
+  final statements = <Statement>[
+    for (final tokens in tokensByLine.values)
+      ...?_tryParse(_parseLine, errorCollector, tokens),
+  ];
+
+  return Program(statements);
+}
+
+class NotMatchingException extends ParserException {
+  NotMatchingException(Location location) : super(location, 'Not understood.');
+}
+
+typedef Parser<T> = T Function(
+    ErrorCollector errorCollector, List<Token> tokens);
+
+T _parseWithFirstMatching<T>(List<Parser<T>> parsers,
+    ErrorCollector errorCollector, List<Token> tokens) {
+  for (final parser in parsers) {
+    final result = _tryParse(parser, errorCollector, tokens);
+    if (result != null) return result;
+  }
+  throw NotMatchingException(tokens.location);
+}
+
+T _tryParse<T>(
+    Parser<T> parser, ErrorCollector errorCollector, List<Token> tokens) {
+  try {
+    return parser(errorCollector, tokens);
+  } on NotMatchingException {
+    // If the parser doesn't match, we'll just return null.
+  } on ParserException catch (error) {
+    errorCollector.add(error);
+  }
+  return null;
+}
+
+extension FancyTokenList on List<Token> {
+  Location get location => firstOrNullToken.location;
+
+  void match(List<bool Function(Token token)> tests) {
+    if (length != tests.length) throw NotMatchingException(location);
+
+    for (int i = 0; i < length; i++) {
+      if (!tests[i](this[i])) throw NotMatchingException(location);
     }
   }
 
-  static LabelStatement parseLabel(_LineParserState state) {
-    final numberOfDots = state.advanceWhile((token) => token.isDot).length;
-    if (numberOfDots >= 2) {
-      state
-        ..advanceWhile((token) => !token.isColon)
-        ..advance();
-      throw ParserException(
-          'A line started with $numberOfDots dots.\nIf you tried to create a '
-          'local label, consider using only one dot.');
-    }
+  void matchSingle(bool Function(Token token) test) => match([test]);
+}
 
-    final identifier =
-        state.expect(TokenType.identifier, expected: 'a label identifier');
-    assert(state.advance().isColon);
+/// Parses a line.
+List<Statement> _parseLine(ErrorCollector errorCollector, List<Token> tokens) {
+  final labels = <Label>[];
+  Statement operation;
+  Comment comment;
 
-    return LabelStatement(
-      location: identifier.location,
-      name: identifier.literal,
+  // Parse as many labels as possible.
+  while (true) {
+    final labelTokens = tokens.removeUntil(
+      (token) => token.isColon,
+      inclusive: true,
     );
+    if (labelTokens == null || labelTokens.isEmpty) break; // No more labels.
+    labels.addIfNotNull(_tryParse(_parseLabel, errorCollector, labelTokens));
   }
 
-  static Statement parseOperationOrDirective(_LineParserState state) {
-    final identifier = state.expect(TokenType.identifier,
-        expected: 'an operation or directive identifier');
+  // Parse the comment from the end.
+  if (tokens.lastOrNullToken.isComment) {
+    comment = _parseComment(errorCollector, [tokens.removeLast()]);
+  }
 
-    SizeStatement size;
-    if (state.peek().isDot) {
-      state.advance();
-      state.tryOrCollectError(() => size = parseSize(state));
+  // If there's still content left, this needs to be the operation.
+  operation = _tryParse(_parseOperation, errorCollector, tokens);
+
+  return [
+    ...labels,
+    if (operation != null) operation,
+    if (comment != null) comment,
+  ];
+}
+
+/// A label can either be a global label, consisting of an identifier and a
+/// colon. Or a local label, consisting of a dot, an identifier and a colon.
+Label _parseLabel(ErrorCollector errorCollector, List<Token> tokens) {
+  return _parseWithFirstMatching([
+    _parseLocalLabel,
+    _parseGlobalLabel,
+  ], errorCollector, tokens);
+}
+
+/// Parses a global label like "label:".
+Label _parseGlobalLabel(ErrorCollector errorCollector, List<Token> tokens) {
+  tokens.match([
+    (first) => first.isIdentifier,
+    (second) => second.isColon,
+  ]);
+  return Label(
+    location: tokens.location,
+    name: tokens.second.lexeme,
+  );
+}
+
+/// Parses a local label like ".label:".
+Label _parseLocalLabel(ErrorCollector errorCollector, List<Token> tokens) {
+  tokens.match([
+    (first) => first.isDot,
+    (second) => second.isIdentifier,
+    (third) => third.isColon,
+  ]);
+  return Label(
+    location: tokens.location,
+    name: tokens.second.lexeme,
+  );
+}
+
+/// Parses a comment like "* some comment".
+Comment _parseComment(ErrorCollector errorCollector, List<Token> tokens) {
+  tokens.matchSingle((token) => token.isComment);
+  return Comment(
+    location: tokens.location,
+    comment: tokens.single.lexeme.substring(1).trim(),
+  );
+}
+
+/// Parses an operation. An operation has a code identifying the operation
+/// type, an optional size as well as multiple optional operands.
+Statement _parseOperation(ErrorCollector errorCollector, List<Token> tokens) {
+  if (tokens.isEmpty) throw NotMatchingException(tokens.location);
+
+  OperationType operationType;
+  Size size;
+  final operands = <Operand>[];
+
+  // Parse the code of the operation and find the appropriate operation type.
+  final codeToken = tokens.removeFirst();
+  final code = codeToken.lexeme.toUpperCase();
+  operationType = OperationType.values.firstWhereOrNull(
+    (operation) => operation.code == code,
+  );
+  if (operationType == null) {
+    errorCollector.add(ParserException(codeToken.location,
+        'Expected an operation code, but found unknown identifier $code.'));
+  }
+
+  // Some operations define a size after them. Example: MOVE.W
+  if (tokens.firstOrNullToken.isDot) {
+    tokens.removeFirst(); // Consume the dot.
+    size = _parseSize(errorCollector, [tokens.removeFirst()]);
+  }
+
+  // Parse the operands. The current operand goes up to the next comma.
+  // If no comma exists, all remaining tokens are part of that operand.
+  while (tokens.isNotEmpty) {
+    final operandTokens = tokens.removeUntil((token) => token.isComma) ?? [];
+    if (operandTokens.isEmpty) {
+      operandTokens.addAll(tokens);
+      tokens.clear();
+    } else {
+      tokens.removeFirst(); // Consume the comma.
     }
 
-    final operands = <OperandStatement>[];
-    while (true) {
-      state.tryOrCollectError(() {
-        operands.add(parseOperand(state));
-      });
-      final isNextComma = state.peek()?.isComma ?? false;
-      if (!isNextComma) break;
-      state.expect(TokenType.comma,
-          expected: 'a comma indicating more operands are coming');
-    }
-
-    // Now, we got the [identifier] of the operation as well as its [size] and
-    // [operands]. It's time to see if there actually exists an operation or
-    // directive which matches that signature!
-
-    final code = (identifier.literal as String).toUpperCase();
-    var operation = Operation.values.firstOrNull(
-      (operation) => operation.code == code,
-    );
-
-    if (operation != null) {
-      state.tryOrCollectError(() {
-        ensureMatchingOperationConfigurationExists(
-          operation,
-          size.size,
-          operands,
-        );
-      });
-
-      return OperationStatement(
-        location: identifier.location,
-        operation: operation,
-        size: size,
-        operands: operands,
-      );
-    }
-
-    // No matching operation was found. Maybe this is a directive?
-
-    //return DirectiveStatement();
-
-    state.errorCollector.add(Error(
-      location: identifier.location,
-      message: 'Unknown operation ${identifier.literal}.',
+    operands.addIfNotNull(_tryParse(
+      _parseOperand,
+      errorCollector,
+      operandTokens,
     ));
-
-    // Although the operation is unknown, we still continue parsing the rest of
-    // the program so that we can report all errors at once. So we just return
-    // null here, causing this statement to simple be omitted in the resulting
-    // statement list.
-    return null;
   }
 
-  static SizeStatement parseSize(_LineParserState state) {
-    final token = state.expect(TokenType.identifier,
-        expected: "a size (either B for byte, W for word or L for long word)");
-    final name = token.literal.toString().toUpperCase();
-
-    final size = {
-      'B': Size.byte,
-      'W': Size.word,
-      'L': Size.longWord,
-    }[name];
-    if (size == null) {
-      throw ParserException(
-          "A size was expected. That's either B for byte, W for word or L for "
-          "long word. But $name was given. That's not a valid size.");
-    }
-    return SizeStatement(location: token.location, size: size);
+  if (operationType != null) {
+    return Operation(
+      location: tokens.location,
+      type: operationType,
+      size: size,
+      operands: operands,
+    );
   }
 
-  static OperandStatement parseOperand(_LineParserState state) {
-    Token expect(TokenType type, {OperandType operandType, String expected}) {
-      final expectedMessage = StringBuffer(expected);
-      if (operandType != null) {
-        expectedMessage.write(" for an ${operandType.toShortString()}"
-            "operand ('${operandType.toDescriptiveString()}')");
-      }
-      return state.expect(type, expected: expectedMessage.toString());
-    }
+  return null;
+}
 
-    RegisterStatement parseRegister(Token token) {
-      final name = (token.literal as String).toUpperCase();
-      if (!token.isIdentifier) {
-        throw ParserException('Expected register, but found $name.');
-      }
-      if (name == 'PC') {
-        return PcRegisterStatement(location: token.location);
-      }
-      if (name == 'SP') {
-        return AxRegisterStatement(location: token.location, index: 7);
-      }
-      if (!name.startsWith('A') && !name.startsWith('D')) {
-        throw ParserException('Expected register, but found $name.');
-      }
+/// Parses a size. A size is either "B" for byte, "W" for word or "L" for long.
+Size _parseSize(ErrorCollector errorCollector, List<Token> tokens) {
+  tokens.matchSingle((single) => single.isIdentifier);
 
-      final index = int.tryParse(name.substring(1));
-      if (index == null) {
-        throw ParserException(
-            'Expected a register index, but found ${name.substring(1)}.');
-      }
-      if (name.startsWith('A')) {
-        return AxRegisterStatement(location: token.location, index: index);
-      } else {
-        assert(name.startsWith('D'));
-        return DxRegisterStatement(location: token.location, index: index);
-      }
-    }
+  final sizeLiteral = tokens.single.lexeme.toUpperCase();
+  final size = {
+    'B': SizeValue.byte,
+    'W': SizeValue.word,
+    'L': SizeValue.longWord,
+  }[sizeLiteral];
 
-    RegisterStatement expectRegister<T>(Token token) {
-      final register = parseRegister(token);
-      if (register is T) {
-        return register;
-      }
-      throw ParserException(
-          'Expected register of type $T, but actually found register of type '
-          '${token.runtimeType}.');
-    }
-
-    final location = state.peek().location;
-
-    // Dn, An, CCR, SR, USP or immediate with label.
-    if (state.peek().isIdentifier) {
-      final identifier = state.advance();
-      final operand = {
-        'CCR': CcrOperandStatement(location: location),
-        'SR': SrOperandStatement(location: location),
-        'USP': UspOperandStatement(location: location),
-      }[identifier.lexeme];
-      if (operand != null) {
-        return operand;
-      }
-
-      final register = parseRegister(identifier);
-      if (register?.isPc ?? false) {
-        throw ParserException('Unexpected identifier ${identifier.lexeme}.');
-      }
-      if (register.isAx) {
-        return AxOperandStatement(location: location, register: register);
-      }
-      if (register.isDx) {
-        return DxOperandStatement(location: location, register: register);
-      }
-    }
-
-    // #xxx
-    if (state.peek().isNumberSign) {
-      state.advance();
-      final token = expect(
-        TokenType.number,
-        expected: 'a value',
-        operandType: OperandType.immediate,
-      );
-      final data = int.tryParse(token.lexeme);
-      if (data == null) {
-        throw ParserException(
-            'Immediate data was expected, but found ${token.lexeme}.');
-      }
-      return ImmediateOperandStatement(location: location, value: data);
-    }
-
-    // -(An)
-    if (state.peek().isMinus) {
-      state.advance();
-      expect(
-        TokenType.leftParen,
-        expected: 'an opening parenthesis',
-        operandType: OperandType.axIndWithPreDec,
-      );
-      final identifier = state.expect(TokenType.identifier,
-          expected: 'An or SP for a predecrement -(An) or -(SP) operand');
-      final register = expectRegister<AxRegisterStatement>(identifier);
-      expect(
-        TokenType.rightParen,
-        expected: 'a closing parenthesis',
-        operandType: OperandType.axIndWithPreDec,
-      );
-      return AxIndWithPreDecOperandStatement(
-          location: location, register: register);
-    }
-
-    expect(TokenType.leftParen, expected: 'an operand');
-
-    // (An) and (An)+
-    if (state.peek().isIdentifier) {
-      final identifier = state.advance();
-      final register = expectRegister<AxRegisterStatement>(identifier);
-      expect(TokenType.rightParen,
-          expected: 'a closing parenthesis for an address register operand');
-      if (state.peek().isPlus) {
-        state.advance();
-        return AxIndWithPostIncOperandStatement(
-          location: location,
-          register: register,
-        );
-      } else {
-        return AxIndOperandStatement(location: location, register: register);
-      }
-    }
-
-    final number = expect(TokenType.number,
-        expected: 'a number for a displaced or absolute operand');
-
-    // (xxx).W and (xxx).L
-    if (state.peek().isRightParen) {
-      expect(TokenType.dot, expected: 'a dot for an absolute (xxx).s operand');
-      final size = parseSize(state);
-      if (size.size == Size.byte) {
-        throw ParserException(
-            'Only word (W) or long word (L) sizes are permitted after (xxx).s '
-            'operand.');
-      }
-      return {
-        Size.word: AbsoluteWordOperandStatement(
-          location: location,
-          value: number.literal,
-        ),
-        Size.longWord: AbsoluteLongWordOperandStatement(
-          location: location,
-          value: number.literal,
-        ),
-      }[size.size];
-    }
-
-    // One of (d, An), (d, An, Xn.s), (d, PC), (d, PC, Xn.s)
-
-    final displacement = number.literal;
-    expect(TokenType.comma, expected: 'a comma after the displacement');
-    final register = parseRegister(expect(TokenType.identifier,
-        expected: 'either An or PC for a displaced operand'));
-    if (register.isDx) {
-      throw ParserException('Data register cannot be displaced.');
-    }
-
-    if (state.peek().isRightParen) {
-      state.advance();
-      return register.isPc
-          ? PcIndWithDisplacementOperandStatement(
-              location: location,
-              displacement: displacement,
-            )
-          : AxIndWithDisplacementOperandStatement(
-              location: location,
-              displacement: displacement,
-              register: register,
-            );
-    }
-
-    // One of (d, An, Xn.s), (d, PC, Xn.s)
-
-    final type =
-        register.isPc ? OperandType.pcIndWithIndex : OperandType.axIndWithIndex;
-    expect(TokenType.comma, expected: 'a comma', operandType: type);
-    final index = parseRegister(state.advance());
-    if (register.isPc) {
-      throw ParserException('Expected index register.');
-    }
-    expect(TokenType.dot, expected: 'a dot', operandType: type);
-    final size = parseSize(state);
-    return register.isPc
-        ? PcIndWithIndexOperandStatement(
-            location: location,
-            displacement: displacement,
-            index: index,
-            indexSize: size,
-          )
-        : AxIndWithIndexOperandStatement(
-            location: location,
-            register: register,
-            displacement: displacement,
-            index: index,
-            indexSize: size,
-          );
+  if (size == null) {
+    throw ParserException(
+        tokens.location,
+        "A size was expected. That's either B for byte, W for word or L for "
+        "long word. But $sizeLiteral was given. That's not a valid size.");
   }
 
-  /// Makes sure that an operation configuration matches the given size and
-  /// operands. Otherwise throws a [ParserException].
-  static void ensureMatchingOperationConfigurationExists(
-    Operation operation,
-    Size size,
-    List<OperandStatement> operands,
-  ) {
-    // The operation needs to support the given [size].
-    Iterable<OperationConfiguration> matchingConfigs =
-        operation.configurations.where((operation) {
-      return operation.sizes.contains(size);
-    }).toList();
+  return Size(size, location: tokens.location);
+}
 
-    if (matchingConfigs.isEmpty) {
-      final supportedSizes = operation.configurations
-          .map((op) => op.sizes)
-          .reduce((a, b) => a.union(b))
-          .map((size) => size.toReadableString());
-      throw ParserException("The operation $operation only supports the sizes "
-          "${supportedSizes.toReadableString()}, but you tried to use it "
-          "with the size ${size.toReadableString()}. That doesn't work.");
-    }
+/// Parses an operand.
+Operand _parseOperand(ErrorCollector errorCollector, List<Token> tokens) {
+  return _parseWithFirstMatching([
+    _parseNamedIndirectOperand, // SR etc.
+    _parseNamedRegister, // PC, SP
+    _parseAxRegister, // A3
+    _parseDxRegister, // D4
+    _parseIndWithPreDecOperand, // -(A2)
+    _parseIndWithPostIncOperand, // (A1)+
+    _parseIndOperand, // (A2)
+    _parseAbsoluteOperand, // (12).L
+    _parseImmediate, // #123
+    _parseIndWithDisplacement, // (12, A2)
+    _parseIndWithIndex, // (12, A2, D4)
+  ], errorCollector, tokens);
+}
 
-    // The number of arguments has to match.
-    matchingConfigs = matchingConfigs.where((config) {
-      return config.operandTypes.length == operands.length;
-    });
+/// Parses indirect operands like "CCR", "SR".
+Operand _parseNamedIndirectOperand(
+    ErrorCollector errorCollector, List<Token> tokens) {
+  tokens.matchSingle((token) => token.isIdentifier);
 
-    if (matchingConfigs.isEmpty) {
-      throw ParserException("The operation $operation does not support "
-          "invocation with ${operands.length} operands.");
-    }
-
-    // The type of the operands has to match.
-    matchingConfigs = matchingConfigs.where((configuration) {
-      return IterableZip([configuration.operandTypes, operands])
-          .every((operands) {
-        final fittingTypes = operands.first as Set<OperandType>;
-        final actualType = (operands.last as OperandStatement).type;
-        return fittingTypes.contains(actualType);
-      });
-    }).toList();
-
-    if (matchingConfigs.isEmpty) {
-      final buffer = StringBuffer()
-        ..write("You provided operands of the types ")
-        ..write(operands
-            .map((operand) => operand.type.toDescriptiveString())
-            .toReadableString())
-        ..write(". But the $operation operation on size "
-            "${size.toReadableString()} doesn't accept operands of these "
-            "types.");
-      throw ParserException(buffer.toString());
-    }
-
-    // print('Here are all matching configurations for $operation with size '
-    //     '${size.toReadableString()} and operand ${operands.toReadableString()}.');
-    // matchingConfigs.forEach(print);
-
-    assert(matchingConfigs.length == 1);
+  switch (tokens.single.lexeme.toUpperCase()) {
+    case 'CCR':
+      return CcrOperand(location: tokens.location);
+    case 'SR':
+      return SrOperand(location: tokens.location);
+    case 'USP':
+      return UspOperand(location: tokens.location);
+    default:
+      throw NotMatchingException(tokens.location);
   }
 }
 
-class _LineParserState {
-  _LineParserState(this.tokens, this.errorCollector, this.line)
-      : assert(tokens != null),
-        assert(errorCollector != null),
-        assert(line != null);
+/// Parses a named operand like "CCR", "SR" or "PC".
+Register _parseNamedRegister(
+    ErrorCollector errorCollector, List<Token> tokens) {
+  tokens.matchSingle((token) => token.isIdentifier);
 
-  final List<Token> tokens;
-  final ErrorCollector errorCollector;
-  final int line;
+  switch (tokens.single.lexeme.toUpperCase()) {
+    case 'PC':
+      return PcRegister(location: tokens.location);
+    case 'SP':
+      return AxRegister.sp(location: tokens.location);
+    default:
+      throw NotMatchingException(tokens.location);
+  }
+}
 
-  int start = 0;
-  int current = 0;
+/// Parses only the numeric index of a register like "3" of "A3".
+int _parseIndexOfRegister(Token indexedRegister) {
+  final index = int.tryParse(indexedRegister.lexeme.substring(1));
+  if (index == null || index < 0 || index >= 8) {
+    throw ParserException(indexedRegister.location,
+        'Expected a register index (0 — 7), but found $index.');
+  }
+  return index;
+}
 
-  bool get isAtEnd => current >= tokens.length;
-  bool get isNotAtEnd => !isAtEnd;
-  Token peek() => isAtEnd ? null : tokens[current];
-  Token peek2() => current + 1 >= tokens.length ? null : tokens[current + 1];
-  Token peek3() => current + 2 >= tokens.length ? null : tokens[current + 2];
+/// Parses an address register like "A5".
+AxRegister _parseAxRegister(ErrorCollector errorCollector, List<Token> tokens) {
+  tokens.matchSingle((first) =>
+      first.isIdentifier && first.lexeme.toUpperCase().startsWith('A'));
+  return AxRegister(
+    location: tokens.location,
+    index: _parseIndexOfRegister(tokens.single),
+  );
+}
 
-  Token advance() => isNotAtEnd ? tokens[current++] : const NullToken();
-  List<Token> advanceWhile(bool Function(Token token) predicate) {
-    while (predicate(peek()) && !isAtEnd) {
-      advance();
-    }
-    return tokens.sublist(start, current);
+/// Parses a data register like "D4".
+DxRegister _parseDxRegister(ErrorCollector errorCollector, List<Token> tokens) {
+  tokens.matchSingle((first) =>
+      first.isIdentifier && first.lexeme.toUpperCase().startsWith('D'));
+  return DxRegister(
+    location: tokens.location,
+    index: _parseIndexOfRegister(tokens.single),
+  );
+}
+
+/// Parses and indirect operand like "(A2)".
+AxIndOperand _parseIndOperand(
+    ErrorCollector errorCollector, List<Token> tokens) {
+  tokens.match([
+    (first) => first.isLeftParen,
+    (second) => second.isIdentifier,
+    (third) => third.isRightParen,
+  ]);
+  final registerToken = tokens.second;
+  final register = _parseWithFirstMatching(
+    [
+      _parseAxRegister,
+      _parseNamedRegister,
+    ],
+    errorCollector,
+    [registerToken],
+  );
+  if (register is! AxRegister) {
+    throw ParserException(registerToken.location, 'Expected address register.');
   }
 
-  /// Advances the cursor if the type matches the expected [type]. Otherwise
-  /// throws a [ParserException] describing what was [expected].
-  Token expect(TokenType type, {@required String expected}) {
-    if (peek()?.type != type) {
-      throw ParserException("Expected $expected, but found "
-          "'${peek()?.lexeme ?? 'nothing'}' instead.");
-    }
-    return advance();
-  }
+  return AxIndOperand(
+    location: tokens.location,
+    register: register,
+  );
+}
 
-  // Calls the given [callback]. Returns true if it runs successfully.
-  // If it throws an error, collects it and returns false.
-  bool tryOrCollectError(void Function() callback) {
-    try {
-      callback();
-      return true;
-    } on ParserException catch (error) {
-      errorCollector.add(Error(
-        location: peek()?.location ?? Location.invalid,
-        message: error.message,
-      ));
-      return false;
-    }
+/// Parses a pre-decrement operand like "-(A1)".
+Operand _parseIndWithPreDecOperand(
+    ErrorCollector errorCollector, List<Token> tokens) {
+  if (tokens.length != 4 || tokens.first.isMinus)
+    throw NotMatchingException(tokens.location);
+
+  return AxIndWithPreDecOperand(
+    location: tokens.location,
+    register: _parseIndOperand(errorCollector, tokens).register,
+  );
+}
+
+/// Parses a post-increment operand like "(A0)+".
+Operand _parseIndWithPostIncOperand(
+    ErrorCollector errorCollector, List<Token> tokens) {
+  if (tokens.length != 4 || tokens.last.isPlus)
+    throw NotMatchingException(tokens.location);
+
+  return AxIndWithPostIncOperand(
+    location: tokens.location,
+    register: _parseIndOperand(errorCollector, tokens).register,
+  );
+}
+
+/// Parses an absolute operand like "(12).L".
+Operand _parseAbsoluteOperand(
+    ErrorCollector errorCollector, List<Token> tokens) {
+  tokens.match([
+    (first) => first.isLeftParen,
+    (second) => second.isNumber,
+    (third) => third.isRightParen,
+    (fourth) => fourth.isDot,
+    (fifth) => fifth.isIdentifier,
+  ]);
+
+  final number = int.tryParse(tokens.second.lexeme) ??
+      (throw ParserException(
+          tokens.second.location, 'Expected an absolute number.'));
+
+  switch (_parseSize(errorCollector, [tokens.last]).value) {
+    case SizeValue.word:
+      return AbsoluteWordOperand(location: tokens.location, value: number);
+    case SizeValue.longWord:
+      return AbsoluteLongWordOperand(location: tokens.location, value: number);
+    default:
+      throw ParserException(
+          tokens.last.location,
+          'Only word (W) and long word (L) sizes are permitted for the '
+          '(xxx).s operand.');
   }
+}
+
+/// Parses an immediate operand like "#123".
+Operand _parseImmediate(ErrorCollector errorCollector, List<Token> tokens) {
+  tokens.match([
+    (first) => first.isNumberSign,
+    (second) => second.isNumber,
+  ]);
+  final number = int.tryParse(tokens.second.lexeme) ??
+      (throw ParserException(
+          tokens.second.location, 'Expected immediate number.'));
+  return ImmediateOperand(location: tokens.location, value: number);
+}
+
+/// Parses a register for a displacement operand, which is either PC or An.
+Operand _parseDisplacedRegister(
+    ErrorCollector errorCollector, List<Token> tokens) {
+  tokens.matchSingle((token) => token.isIdentifier);
+
+  final registerToken = tokens.single;
+  final register = _parseOperand(errorCollector, [registerToken]) ??
+      (throw ParserException(registerToken.location, 'Expected register.'));
+  if (register is AxRegister || register is PcRegister) {
+    throw ParserException(registerToken.location,
+        'You can only use either An or PC for a displaced operand.');
+  }
+  return register;
+}
+
+/// Parses an address operand with displacement like "(12, A2)".
+Operand _parseIndWithDisplacement(
+    ErrorCollector errorCollector, List<Token> tokens) {
+  tokens.match([
+    (first) => first.isLeftParen,
+    (second) => second.isNumber,
+    (third) => third.isComma,
+    (fourth) => fourth.isIdentifier,
+    (fifth) => fifth.isRightParen,
+  ]);
+  final displacement = int.tryParse(tokens.second.lexeme) ??
+      (throw ParserException(tokens.second.location, 'Expected displacement.'));
+
+  return IndWithDisplacementOperand(
+    location: tokens.location,
+    register: _parseDisplacedRegister(errorCollector, [tokens.second]),
+    displacement: displacement,
+  );
+}
+
+/// Parses a displaced and indexed address operand like "(12, A2, D4)".
+Operand _parseIndWithIndex(ErrorCollector errorCollector, List<Token> tokens) {
+  tokens.match([
+    (first) => first.isLeftParen,
+    (second) => second.isNumber,
+    (third) => third.isComma,
+    (fourth) => fourth.isIdentifier,
+    (fifth) => fifth.isComma,
+    (sixth) => sixth.isIdentifier,
+    (seventh) => seventh.isDot,
+    (eigth) => eigth.isIdentifier,
+    (ninth) => ninth.isRightParen,
+  ]);
+  final displacement = int.tryParse(tokens.second.lexeme) ??
+      (throw ParserException(tokens.second.location, 'Expected displacement.'));
+  final index = _parseOperand(errorCollector, [tokens.sixth]) ??
+      (throw ParserException(tokens.sixth.location, 'Expected register.'));
+  final size = _parseSize(errorCollector, [tokens.eigth]) ??
+      (throw ParserException(tokens.eigth.location, 'Expected size.'));
+
+  return IndWithIndexOperand(
+    location: tokens.location,
+    register: _parseDisplacedRegister(errorCollector, tokens),
+    displacement: displacement,
+    index: index,
+    indexSize: size,
+  );
 }

@@ -125,6 +125,9 @@ class Size extends Statement {
         super(location: location);
 
   final SizeValue value;
+  bool get isByte => value == SizeValue.byte;
+  bool get isWord => value == SizeValue.word;
+  bool get isLongWord => value == SizeValue.longWord;
 
   String toString() => value.toReadableString();
   String toShortString() => value.toShortString();
@@ -143,7 +146,7 @@ abstract class Operand extends Statement {
 }
 
 /// A reference to a [Register] that can store a value.
-abstract class Register extends Statement {
+abstract class Register extends Operand {
   Register({@required Location location}) : super(location: location);
 
   bool get isPc => this is PcRegister;

@@ -25,7 +25,6 @@ class Token {
   final TokenType type;
   final Location location;
   final String lexeme;
-  final dynamic literal;
 
   bool get isLeftParen => type == TokenType.leftParen;
   bool get isRightParen => type == TokenType.rightParen;
@@ -44,7 +43,6 @@ class Token {
     @required this.type,
     @required this.location,
     this.lexeme,
-    this.literal,
   }) : assert(location != null);
 
   String toString() {
@@ -55,9 +53,8 @@ class Token {
       other is Token &&
       type == other.type &&
       location == other.location &&
-      lexeme == other.lexeme &&
-      literal == other.literal;
-  int get hashCode => hashList([type, location, lexeme, literal]);
+      lexeme == other.lexeme;
+  int get hashCode => hashList([type, location, lexeme]);
 }
 
 class NullToken extends Token {
