@@ -1,4 +1,3 @@
-import '../parser.dart';
 import 'scanner/scanner.dart';
 
 extension FancyList<T> on List<T> {
