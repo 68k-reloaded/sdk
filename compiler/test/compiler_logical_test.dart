@@ -10,40 +10,40 @@ void main() {
     group('NOT:', () {
       <String, StatementWithExpectedResult>{
         'NOT.B D0': StatementWithExpectedResult(
-          operation: Operation.not,
-          size: Size.byte,
+          type: OperationType.not,
+          size: SizeValue.byte,
           operands: [dx(0)],
           expectedResult: CompiledStatement(
             [0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0].bits,
           ),
         ),
         'NOT.W D0': StatementWithExpectedResult(
-          operation: Operation.not,
-          size: Size.word,
+          type: OperationType.not,
+          size: SizeValue.word,
           operands: [dx(0)],
           expectedResult: CompiledStatement(
             [0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0].bits,
           ),
         ),
         'NOT.L D0': StatementWithExpectedResult(
-          operation: Operation.not,
-          size: Size.longWord,
+          type: OperationType.not,
+          size: SizeValue.longWord,
           operands: [dx(0)],
           expectedResult: CompiledStatement(
             [0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0].bits,
           ),
         ),
         'NOT.W A1': StatementWithExpectedResult(
-          operation: Operation.not,
-          size: Size.word,
+          type: OperationType.not,
+          size: SizeValue.word,
           operands: [ax(1)],
           expectedResult: CompiledStatement(
             [0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1].bits,
           ),
         ),
         'NOT.B -(A5)': StatementWithExpectedResult(
-          operation: Operation.not,
-          size: Size.byte,
+          type: OperationType.not,
+          size: SizeValue.byte,
           operands: [axIndWithPreDec(5)],
           expectedResult: CompiledStatement(
             [0, 1, 0, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 1, 0, 1].bits,

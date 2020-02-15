@@ -1,27 +1,60 @@
-import 'package:kt_dart/kt.dart';
 import 'package:m68k_reloaded_parser/parser.dart';
 
 import 'bits.dart';
 import 'compiler.dart';
-import 'statement_extensions.dart';
+import 'utils.dart';
 
-final KtMap<Operation, StatementCompiler> dataMovementCompilers = KtMap.from({
-  Operation.moveq: _compileMoveq,
-});
+final dataMovementCompilers = {
+  OperationType.move: _compileMove,
+  OperationType.moveq: _compileMoveq,
+};
 
-final _moveqBits = [0, 1, 1, 1].bits;
-CompiledStatement _compileMoveq(OperationStatement statement) {
-  assert(statement.operation == Operation.moveq);
+final _moveBits = [0, 0].bits;
+CompiledStatement _compileMove(Operation statement) {
+  assert(statement.type == OperationType.move);
   assert(statement.operands.length == 2);
 
-  final immediate = statement.operands.first;
-  assert(immediate is ImmediateOperandStatement);
+  final source = statement.operands.first;
+  final destination = statement.operands.second;
 
-  final register = statement.operands[1];
-  assert(register is DxOperandStatement);
+  assert(
+      destination.type != OperandType.ccr, 'MOVE to CCR is not yet supported');
+  assert(source.type != OperandType.sr, 'MOVE from SR is not yet supported');
+  assert(destination.type != OperandType.sr, 'MOVE to SR is not yet supported');
+  assert(source.type != OperandType.usp, 'MOVE from SR is not yet supported');
+  assert(
+      destination.type != OperandType.usp, 'MOVE to SR is not yet supported');
 
-  final registerBits = register.compiledRegister;
-  final dataBits = (immediate as ImmediateOperandStatement).compiledByteBits;
+  assert(operandTypesAll.contains(source.type));
+  assert(operandTypesNoAxPcImm.contains(destination));
 
-  return CompiledStatement(_moveqBits + registerBits + [0].bits + dataBits);
+  final sizeBits = statement.compiledSizeOneBased;
+  final destRegisterBits = destination.compiledRegister;
+  final destModeBits = destination.compiledMode;
+  final srcModeBits = source.compiledMode;
+  final srcRegisterBits = source.compiledRegister;
+  return CompiledStatement(
+    _moveBits +
+        sizeBits +
+        destRegisterBits +
+        destModeBits +
+        srcModeBits +
+        srcRegisterBits,
+  );
+}
+
+final _moveqBits = [0, 1, 1, 1].bits;
+CompiledStatement _compileMoveq(Operation statement) {
+  assert(statement.type == OperationType.moveq);
+  assert(statement.operands.length == 2);
+
+  final immediate = statement.operands.first as ImmediateOperand;
+  final destination = statement.operands.second as DxRegister;
+
+  final registerBits = destination.compiledRegister;
+  final dataBits = immediate.compiledByteBits;
+  return CompiledStatement(
+    _moveqBits + registerBits + [0].bits + dataBits,
+    immediateOrSourceExtensions: immediate.compiledValue(statement.size.value),
+  );
 }

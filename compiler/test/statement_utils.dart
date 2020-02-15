@@ -6,20 +6,20 @@ import 'package:test/test.dart';
 
 class StatementWithExpectedResult {
   StatementWithExpectedResult({
-    @required Operation operation,
-    @required Size size,
-    @required List<OperandStatement> operands,
+    @required OperationType type,
+    @required SizeValue size,
+    @required List<Operand> operands,
     @required this.expectedResult,
-  })  : assert(operation != null),
+  })  : assert(type != null),
         assert(size != null),
         assert(operands != null),
         assert(expectedResult != null),
-        statement = OperationStatement(
+        statement = Operation(
           location: Location.invalid,
-          operation: operation,
-          size: SizeStatement(
+          type: type,
+          size: Size(
+            size,
             location: Location.invalid,
-            size: size,
           ),
           operands: operands,
         ),
@@ -29,42 +29,56 @@ class StatementWithExpectedResult {
   final CompiledStatement expectedResult;
 
   void test() {
-    expect(Compiler.compileStatement(statement), equals(expectedResult));
+    expect(Compiler.compileOperation(statement), equals(expectedResult));
   }
 }
 
-DxOperandStatement dx(int index) {
-  return DxOperandStatement(
+DxRegister dx(int index) {
+  return DxRegister(
     location: Location.invalid,
-    register: DxRegisterStatement(
+    index: index,
+  );
+}
+
+AxRegister ax(int index) {
+  return AxRegister(
+    location: Location.invalid,
+    index: index,
+  );
+}
+
+AxIndOperand axInd(int index) {
+  return AxIndOperand(
+    location: Location.invalid,
+    register: AxRegister(
       location: Location.invalid,
       index: index,
     ),
   );
 }
 
-AxOperandStatement ax(int index) {
-  return AxOperandStatement(
+AxIndWithPostIncOperand axIndWithPostInc(int index) {
+  return AxIndWithPostIncOperand(
     location: Location.invalid,
-    register: AxRegisterStatement(
+    register: AxRegister(
       location: Location.invalid,
       index: index,
     ),
   );
 }
 
-AxIndWithPreDecOperandStatement axIndWithPreDec(int index) {
-  return AxIndWithPreDecOperandStatement(
+AxIndWithPreDecOperand axIndWithPreDec(int index) {
+  return AxIndWithPreDecOperand(
     location: Location.invalid,
-    register: AxRegisterStatement(
+    register: AxRegister(
       location: Location.invalid,
       index: index,
     ),
   );
 }
 
-ImmediateOperandStatement immediate(int value) {
-  return ImmediateOperandStatement(
+ImmediateOperand immediate(int value) {
+  return ImmediateOperand(
     location: Location.invalid,
     value: value,
   );

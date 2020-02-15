@@ -1,7 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:data_classes/data_classes.dart';
-import 'package:kt_dart/kt.dart';
+import 'package:m68k_reloaded_compiler/src/compiler_integer_arithmetic.dart';
 import 'package:m68k_reloaded_compiler/src/compiler_logical.dart';
 import 'package:m68k_reloaded_parser/parser.dart';
 
@@ -9,7 +9,11 @@ import 'bits.dart';
 import 'compiler_data_movement.dart';
 
 class Compiler {
-  static final _operationCompilers = dataMovementCompilers + logicalCompilers;
+  static final _operationCompilers = {
+    ...dataMovementCompilers,
+    ...integerArithmeticCompilers,
+    ...logicalCompilers,
+  };
 
   Compiler._();
 
@@ -17,18 +21,18 @@ class Compiler {
     assert(program != null);
 
     final statementCode = program.statements.map((s) {
-      if (s is OperationStatement) {
-        return compileStatement(s);
+      if (s is Operation) {
+        return compileOperation(s);
       }
 
       assert(false, 'Unsupported statement: $s');
       return null;
-    }).flatMap((b) => b.asUint16List.toList().kt);
-    return Uint16List.fromList(statementCode.asList());
+    }).expand((b) => b.asUint16List);
+    return Uint16List.fromList(statementCode);
   }
 
-  static CompiledStatement compileStatement(OperationStatement statement) {
-    return _operationCompilers[statement.operation](statement);
+  static CompiledStatement compileOperation(Operation operation) {
+    return _operationCompilers[operation.type](operation);
   }
 }
 
@@ -94,5 +98,4 @@ class CompiledStatement {
       ]);
 }
 
-typedef StatementCompiler = CompiledStatement Function(
-    OperationStatement statement);
+typedef StatementCompiler = CompiledStatement Function(Operation operation);

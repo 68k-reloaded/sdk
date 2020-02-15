@@ -143,20 +143,27 @@ class Size extends Statement {
 /// a [Register] or an [Immediate] value.
 abstract class Operand extends Statement {
   Operand({@required Location location}) : super(location: location);
+
+  OperandType get type;
 }
 
 /// A reference to a [Register] that can store a value.
 abstract class Register extends Operand {
   Register({@required Location location}) : super(location: location);
-
-  bool get isPc => this is PcRegister;
-  bool get isAx => this is AxRegister;
-  bool get isDx => this is DxRegister;
 }
 
 /// The [Register] of the program counter.
 class PcRegister extends Register {
   PcRegister({@required Location location}) : super(location: location);
+
+  @override
+  OperandType get type {
+    assert(
+        false,
+        'This is not a valid effective address by itself, but can only be '
+        'wrapped with index or displacement');
+    return null;
+  }
 
   String toString() => 'PC';
 
@@ -179,6 +186,22 @@ abstract class IndexedRegister extends Register {
   String toString() => 'X$index';
 }
 
+/// A data register: Dx
+class DxRegister extends IndexedRegister {
+  DxRegister({@required Location location, @required int index})
+      : super(location: location, index: index);
+
+  @override
+  OperandType get type => OperandType.dx;
+  String toString() => 'D$index';
+
+  @override
+  operator ==(Object other) =>
+      other is DxRegister && location == other.location && index == other.index;
+  @override
+  int get hashCode => hashList([runtimeType, location, index]);
+}
+
 /// An address register: Ax
 /// A7 refers to the stack pointer (SP).
 class AxRegister extends IndexedRegister {
@@ -189,25 +212,13 @@ class AxRegister extends IndexedRegister {
 
   bool get isSp => index == 7;
 
+  @override
+  OperandType get type => OperandType.ax;
   String toString() => isSp ? 'SP' : 'A$index';
 
   @override
   operator ==(Object other) =>
       other is AxRegister && location == other.location && index == other.index;
-  @override
-  int get hashCode => hashList([runtimeType, location, index]);
-}
-
-/// A data register: Dx
-class DxRegister extends IndexedRegister {
-  DxRegister({@required Location location, @required int index})
-      : super(location: location, index: index);
-
-  String toString() => 'D$index';
-
-  @override
-  operator ==(Object other) =>
-      other is DxRegister && location == other.location && index == other.index;
   @override
   int get hashCode => hashList([runtimeType, location, index]);
 }
@@ -220,6 +231,8 @@ class AxIndOperand extends Operand {
 
   final AxRegister register;
 
+  @override
+  OperandType get type => OperandType.axInd;
   String toString() => '($register)';
 
   @override
@@ -241,6 +254,8 @@ class AxIndWithPostIncOperand extends Operand {
 
   final AxRegister register;
 
+  @override
+  OperandType get type => OperandType.axIndWithPostInc;
   String toString() => '($register)+';
 
   @override
@@ -262,6 +277,8 @@ class AxIndWithPreDecOperand extends Operand {
 
   final AxRegister register;
 
+  @override
+  OperandType get type => OperandType.axIndWithPreDec;
   String toString() => '-($register)';
 
   @override
@@ -280,11 +297,20 @@ class IndWithDisplacementOperand extends Operand {
     @required this.register,
     @required this.displacement,
   })  : assert(register != null),
+        assert(register is AxRegister || register is PcRegister),
         assert(displacement != null),
         super(location: location);
 
   final Register register;
   final int displacement;
+
+  @override
+  OperandType get type {
+    if (register is AxRegister) return OperandType.axIndWithDisplacement;
+    if (register is PcRegister) return OperandType.pcIndWithDisplacement;
+    assert(false, 'Invalid register type: ${register.runtimeType}');
+    return null;
+  }
 
   String toString() => '($displacement, $register)';
 
@@ -306,6 +332,7 @@ class IndWithIndexOperand extends Operand {
     @required this.index,
     @required this.indexSize,
   })  : assert(register != null),
+        assert(register is AxRegister || register is PcRegister),
         assert(displacement != null),
         assert(index != null),
         assert(indexSize != null),
@@ -315,6 +342,14 @@ class IndWithIndexOperand extends Operand {
   final int displacement;
   final IndexedRegister index;
   final Size indexSize;
+
+  @override
+  OperandType get type {
+    if (register is AxRegister) return OperandType.axIndWithIndex;
+    if (register is PcRegister) return OperandType.pcIndWithIndex;
+    assert(false, 'Invalid register type: ${register.runtimeType}');
+    return null;
+  }
 
   String toString() => '($displacement, $register, $index$indexSize)';
 
@@ -335,6 +370,8 @@ class AbsoluteWordOperand extends Operand {
 
   final int value;
 
+  @override
+  OperandType get type => OperandType.absoluteWord;
   String toString() => '($value).W';
 
   @override
@@ -356,6 +393,8 @@ class AbsoluteLongWordOperand extends Operand {
 
   final int value;
 
+  @override
+  OperandType get type => OperandType.absoluteLongWord;
   String toString() => '($value).L';
 
   @override
@@ -377,6 +416,8 @@ class ImmediateOperand extends Operand {
 
   final int value;
 
+  @override
+  OperandType get type => OperandType.immediate;
   String toString() => '#$value';
 
   @override
@@ -392,6 +433,8 @@ class ImmediateOperand extends Operand {
 class CcrOperand extends Operand {
   CcrOperand({@required Location location}) : super(location: location);
 
+  @override
+  OperandType get type => OperandType.ccr;
   String toString() => 'CCR';
 
   @override
@@ -405,6 +448,8 @@ class CcrOperand extends Operand {
 class SrOperand extends Operand {
   SrOperand({@required Location location}) : super(location: location);
 
+  @override
+  OperandType get type => OperandType.sr;
   String toString() => 'SR';
 
   @override
@@ -413,21 +458,11 @@ class SrOperand extends Operand {
   int get hashCode => hashList([runtimeType, location]);
 }
 
-class AddressOperand extends Operand {
-  AddressOperand({@required Location location}) : super(location: location);
-
-  String toString() => '[address operand]';
-
-  @override
-  operator ==(Object other) =>
-      other is AddressOperand && location == other.location;
-  @override
-  int get hashCode => hashList([runtimeType, location]);
-}
-
 class UspOperand extends Operand {
   UspOperand({@required Location location}) : super(location: location);
 
+  @override
+  OperandType get type => OperandType.usp;
   String toString() => 'USP';
 
   @override
