@@ -3,10 +3,6 @@ import 'package:meta/meta.dart';
 
 @immutable
 class Location {
-  final int line;
-  final int col;
-  final int length;
-
   const Location({
     @required this.line,
     @required this.col,
@@ -14,6 +10,11 @@ class Location {
   })  : assert(line != null),
         assert(col != null),
         assert(length != null);
+
+  final int line;
+  final int col;
+  final int length;
+  int get endCol => col + length;
 
   static const invalid = Location(line: 0, col: 0, length: 0);
 

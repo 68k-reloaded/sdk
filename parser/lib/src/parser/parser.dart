@@ -1,4 +1,5 @@
 import 'dart:core';
+import 'dart:math';
 
 import 'package:collection/collection.dart';
 import 'package:meta/meta.dart';
@@ -57,18 +58,27 @@ typedef Parser<T> = T Function(
 T _parseWithFirstMatching<T>(List<Parser<T>> parsers,
     ErrorCollector errorCollector, List<Token> tokens) {
   for (final parser in parsers) {
-    final result = _tryParse(parser, errorCollector, tokens);
+    final result = _tryParse(
+      parser,
+      errorCollector,
+      tokens,
+      reportNotMatching: false,
+    );
     if (result != null) return result;
   }
   throw NotMatchingException(tokens.location);
 }
 
 T _tryParse<T>(
-    Parser<T> parser, ErrorCollector errorCollector, List<Token> tokens) {
+  Parser<T> parser,
+  ErrorCollector errorCollector,
+  List<Token> tokens, {
+  bool reportNotMatching = true,
+}) {
   try {
     return parser(errorCollector, tokens);
-  } on NotMatchingException {
-    // If the parser doesn't match, we'll just return null.
+  } on NotMatchingException catch (error) {
+    if (reportNotMatching) errorCollector.add(error);
   } on ParserException catch (error) {
     errorCollector.add(error);
   }
@@ -76,7 +86,17 @@ T _tryParse<T>(
 }
 
 extension FancyTokenList on List<Token> {
-  Location get location => firstOrNullToken.location;
+  Location get location {
+    if (isEmpty) return Location.invalid;
+
+    final line = first.location.line;
+    assert(every((token) => token.location.line == line));
+
+    final startCol = map((token) => token.location.col).reduce(min);
+    final endCol = map((token) => token.location.endCol).reduce(max);
+
+    return Location(line: line, col: startCol, length: endCol - startCol);
+  }
 
   void match(List<bool Function(Token token)> tests) {
     if (length != tests.length) throw NotMatchingException(location);
@@ -102,7 +122,8 @@ List<Statement> _parseLine(ErrorCollector errorCollector, List<Token> tokens) {
       inclusive: true,
     );
     if (labelTokens == null || labelTokens.isEmpty) break; // No more labels.
-    labels.addIfNotNull(_tryParse(_parseLabel, errorCollector, labelTokens));
+    labels.addIfNotNull(_tryParse(_parseLabel, errorCollector, labelTokens,
+        reportNotMatching: false));
   }
 
   // Parse the comment from the end.
@@ -111,7 +132,9 @@ List<Statement> _parseLine(ErrorCollector errorCollector, List<Token> tokens) {
   }
 
   // If there's still content left, this needs to be the operation.
-  operation = _tryParse(_parseOperation, errorCollector, tokens);
+  if (tokens.isNotEmpty) {
+    operation = _tryParse(_parseOperation, errorCollector, tokens);
+  }
 
   return [
     ...labels,
@@ -349,24 +372,24 @@ AxIndOperand _parseIndOperand(
 /// Parses a pre-decrement operand like "-(A1)".
 Operand _parseIndWithPreDecOperand(
     ErrorCollector errorCollector, List<Token> tokens) {
-  if (tokens.length != 4 || tokens.first.isMinus)
+  if (tokens.length != 4 || !tokens.first.isMinus)
     throw NotMatchingException(tokens.location);
 
   return AxIndWithPreDecOperand(
     location: tokens.location,
-    register: _parseIndOperand(errorCollector, tokens).register,
+    register: _parseIndOperand(errorCollector, tokens..removeFirst()).register,
   );
 }
 
 /// Parses a post-increment operand like "(A0)+".
 Operand _parseIndWithPostIncOperand(
     ErrorCollector errorCollector, List<Token> tokens) {
-  if (tokens.length != 4 || tokens.last.isPlus)
+  if (tokens.length != 4 || !tokens.last.isPlus)
     throw NotMatchingException(tokens.location);
 
   return AxIndWithPostIncOperand(
     location: tokens.location,
-    register: _parseIndOperand(errorCollector, tokens).register,
+    register: _parseIndOperand(errorCollector, tokens..removeLast()).register,
   );
 }
 
