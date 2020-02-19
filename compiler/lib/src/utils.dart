@@ -107,8 +107,8 @@ extension SizeValueBits on SizeValue {
       }[this];
   Bits get compiledOneBased => {
         SizeValue.byte: [0, 1].bits,
-        SizeValue.word: [1, 0].bits,
-        SizeValue.longWord: [1, 1].bits,
+        SizeValue.word: [1, 1].bits,
+        SizeValue.longWord: [1, 0].bits,
       }[this];
   Bits get compiledSingleBit {
     assert(this != SizeValue.byte);

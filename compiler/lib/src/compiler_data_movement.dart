@@ -26,7 +26,7 @@ CompiledStatement _compileMove(Operation statement) {
       destination.type != OperandType.usp, 'MOVE to SR is not yet supported');
 
   assert(operandTypesAll.contains(source.type));
-  assert(operandTypesNoAxPcImm.contains(destination));
+  assert(operandTypesNoAxPcImm.contains(destination.type));
 
   final sizeBits = statement.compiledSizeOneBased;
   final destRegisterBits = destination.compiledRegister;
@@ -40,6 +40,9 @@ CompiledStatement _compileMove(Operation statement) {
         destModeBits +
         srcModeBits +
         srcRegisterBits,
+    immediateOrSourceExtensions: source is ImmediateOperand
+        ? source.compiledValue(statement.size.value)
+        : [],
   );
 }
 
@@ -53,8 +56,5 @@ CompiledStatement _compileMoveq(Operation statement) {
 
   final registerBits = destination.compiledRegister;
   final dataBits = immediate.compiledByteBits;
-  return CompiledStatement(
-    _moveqBits + registerBits + [0].bits + dataBits,
-    immediateOrSourceExtensions: immediate.compiledValue(statement.size.value),
-  );
+  return CompiledStatement(_moveqBits + registerBits + [0].bits + dataBits);
 }

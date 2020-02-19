@@ -15,5 +15,5 @@ export 'src/parser/parser.dart'
         SizeValue,
         OperationConfiguration;
 export 'src/parser/statements.dart';
-export 'src/scanner/scanner.dart' show scan, Token, TokenType;
+export 'src/scanner/scanner.dart' show scan, ScannableTokens, Token, TokenType;
 export 'src/utils.dart';

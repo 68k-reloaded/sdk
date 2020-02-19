@@ -87,9 +87,10 @@ class CompiledStatement {
   bool operator ==(Object other) =>
       other is CompiledStatement &&
       operationWord == other.operationWord &&
-      operandSpecifiers == other.operandSpecifiers &&
-      immediateOrSourceExtensions == other.immediateOrSourceExtensions &&
-      destinationExtensions == other.destinationExtensions;
+      operandSpecifiers.deeplyEquals(other.operandSpecifiers) &&
+      immediateOrSourceExtensions
+          .deeplyEquals(other.immediateOrSourceExtensions) &&
+      destinationExtensions.deeplyEquals(other.destinationExtensions);
   int get hashCode => hashList([
         operationWord,
         operandSpecifiers,

@@ -39,7 +39,7 @@ CompiledStatement _compileAdd(Operation statement) {
   return CompiledStatement(
     _addBits + dxBits + directionBits + sizeBits + xxModeBits + xxRegisterBits,
     immediateOrSourceExtensions:
-        xx is ImmediateOperand ? xx.compiledValue(statement.size.value) : null,
+        xx is ImmediateOperand ? xx.compiledValue(statement.size.value) : [],
   );
 }
 

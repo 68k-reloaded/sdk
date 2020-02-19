@@ -15,7 +15,6 @@ void main() {
           operands: [dx(1), dx(2)],
           expectedResult: CompiledStatement(
             [1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1].bits,
-            immediateOrSourceExtensions: [Bits.word(0x00)],
           ),
         ),
         'ADD.B #1, D2': StatementWithExpectedResult(
@@ -60,12 +59,12 @@ void main() {
             immediateOrSourceExtensions: [Bits.word(0x01)],
           ),
         ),
-        'CMPI.L #\$42, A5': StatementWithExpectedResult(
+        'CMPI.L #\$42, (A5)': StatementWithExpectedResult(
           type: OperationType.cmpi,
           size: SizeValue.longWord,
-          operands: [immediate(0x42), ax(0)],
+          operands: [immediate(0x42), axInd(5)],
           expectedResult: CompiledStatement(
-            [0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1].bits,
+            [0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1].bits,
             immediateOrSourceExtensions: [
               Bits.word(0x0000),
               Bits.word(0x0042),
@@ -98,7 +97,7 @@ void main() {
         'SUBQ.L #4, (A1)+': StatementWithExpectedResult(
           type: OperationType.subq,
           size: SizeValue.longWord,
-          operands: [immediate(4), axIndWithPostInc(2)],
+          operands: [immediate(4), axIndWithPostInc(1)],
           expectedResult: CompiledStatement(
             [0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1].bits,
           ),
